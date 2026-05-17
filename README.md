@@ -41,6 +41,8 @@ vendor/bin/phpunit
 | `sourecode/timestampable-bundle` | `src/SoureCode/Bundle/TimestampableBundle/` |
 | `sourecode/authorable` | `src/SoureCode/Component/Authorable/` |
 | `sourecode/authorable-bundle` | `src/SoureCode/Bundle/AuthorableBundle/` |
+| `sourecode/versionable` | `src/SoureCode/Component/Versionable/` |
+| `sourecode/versionable-bundle` | `src/SoureCode/Bundle/VersionableBundle/` |
 
 ## Requirements
 

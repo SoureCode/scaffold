@@ -6,6 +6,7 @@
         "doctrine/doctrine-bundle": "^3.2",
         "doctrine/orm": "^3.6",
         "php": ">=8.5",
+        "psr/clock": "^1.0",
         "symfony/clock": "^8.0",
         "symfony/framework-bundle": "^8.0",
         "symfony/security-core": "^8.0"
@@ -16,24 +17,30 @@
         "sourecode/doctrine-extensions": "self.version",
         "sourecode/doctrine-extensions-bundle": "self.version",
         "sourecode/timestampable": "self.version",
-        "sourecode/timestampable-bundle": "self.version"
+        "sourecode/timestampable-bundle": "self.version",
+        "sourecode/versionable": "self.version",
+        "sourecode/versionable-bundle": "self.version"
     },
     "autoload": {
         "psr-4": {
             "SoureCode\\Bundle\\AuthorableBundle\\": "src/SoureCode/Bundle/AuthorableBundle/",
             "SoureCode\\Bundle\\DoctrineExtensionsBundle\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/",
             "SoureCode\\Bundle\\TimestampableBundle\\": "src/SoureCode/Bundle/TimestampableBundle/",
+            "SoureCode\\Bundle\\VersionableBundle\\": "src/SoureCode/Bundle/VersionableBundle/",
             "SoureCode\\Component\\Authorable\\": "src/SoureCode/Component/Authorable/",
             "SoureCode\\Component\\DoctrineExtensions\\": "src/SoureCode/Component/DoctrineExtensions/",
-            "SoureCode\\Component\\Timestampable\\": "src/SoureCode/Component/Timestampable/"
+            "SoureCode\\Component\\Timestampable\\": "src/SoureCode/Component/Timestampable/",
+            "SoureCode\\Component\\Versionable\\": "src/SoureCode/Component/Versionable/"
         },
         "exclude-from-classmap": [
             "/src/SoureCode/Bundle/AuthorableBundle/Tests",
             "/src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests",
             "/src/SoureCode/Bundle/TimestampableBundle/Tests",
+            "/src/SoureCode/Bundle/VersionableBundle/Tests",
             "/src/SoureCode/Component/Authorable/Tests",
             "/src/SoureCode/Component/DoctrineExtensions/Tests",
-            "/src/SoureCode/Component/Timestampable/Tests"
+            "/src/SoureCode/Component/Timestampable/Tests",
+            "/src/SoureCode/Component/Versionable/Tests"
         ]
     },
     "autoload-dev": {
@@ -41,9 +48,11 @@
             "SoureCode\\Bundle\\AuthorableBundle\\Tests\\": "src/SoureCode/Bundle/AuthorableBundle/Tests/",
             "SoureCode\\Bundle\\DoctrineExtensionsBundle\\Tests\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests/",
             "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "src/SoureCode/Bundle/TimestampableBundle/Tests/",
+            "SoureCode\\Bundle\\VersionableBundle\\Tests\\": "src/SoureCode/Bundle/VersionableBundle/Tests/",
             "SoureCode\\Component\\Authorable\\Tests\\": "src/SoureCode/Component/Authorable/Tests/",
             "SoureCode\\Component\\DoctrineExtensions\\Tests\\": "src/SoureCode/Component/DoctrineExtensions/Tests/",
-            "SoureCode\\Component\\Timestampable\\Tests\\": "src/SoureCode/Component/Timestampable/Tests/"
+            "SoureCode\\Component\\Timestampable\\Tests\\": "src/SoureCode/Component/Timestampable/Tests/",
+            "SoureCode\\Component\\Versionable\\Tests\\": "src/SoureCode/Component/Versionable/Tests/"
         }
     },
     "config": {
@@ -59,6 +68,7 @@
         "nyholm/symfony-bundle-test": "^3.1",
         "phpunit/phpunit": "^13.1",
         "symfony/cache": "^8.0",
+        "symfony/clock": "^8.0",
         "symfony/security-bundle": "^8.0"
     }
 }

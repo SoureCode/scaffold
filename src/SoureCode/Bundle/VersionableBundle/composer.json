@@ -1,0 +1,26 @@
+{
+    "name": "sourecode/versionable-bundle",
+    "type": "symfony-bundle",
+    "description": "Symfony bundle integration for sourecode/versionable.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "doctrine/doctrine-bundle": "^3.2",
+        "sourecode/doctrine-extensions-bundle": "self.version",
+        "sourecode/versionable": "self.version",
+        "symfony/clock": "^8.0",
+        "symfony/framework-bundle": "^8.0"
+    },
+    "require-dev": {
+        "nyholm/symfony-bundle-test": "^3.1",
+        "phpunit/phpunit": "^13.1"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Bundle\\VersionableBundle\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Bundle\\VersionableBundle\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}
