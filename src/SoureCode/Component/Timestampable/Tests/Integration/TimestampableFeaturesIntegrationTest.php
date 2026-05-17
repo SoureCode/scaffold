@@ -13,7 +13,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
-use SoureCode\Component\Timestampable\ChangeSet\ChangeSetMatcher;
+use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
 use SoureCode\Component\Timestampable\Clock\TimestampFactory;
 use SoureCode\Component\Timestampable\EventListener\TimestampableListener;
 use SoureCode\Component\Timestampable\EventListener\TimestampableMappingListener;

@@ -8,22 +8,34 @@
         "symfony/clock": "^8.0"
     },
     "replace": {
+        "sourecode/authorable": "self.version",
+        "sourecode/authorable-bundle": "self.version",
+        "sourecode/doctrine-extensions": "self.version",
         "sourecode/timestampable": "self.version",
         "sourecode/timestampable-bundle": "self.version"
     },
     "autoload": {
         "psr-4": {
+            "SoureCode\\Bundle\\AuthorableBundle\\": "src/SoureCode/Bundle/AuthorableBundle/",
             "SoureCode\\Bundle\\TimestampableBundle\\": "src/SoureCode/Bundle/TimestampableBundle/",
+            "SoureCode\\Component\\Authorable\\": "src/SoureCode/Component/Authorable/",
+            "SoureCode\\Component\\DoctrineExtensions\\": "src/SoureCode/Component/DoctrineExtensions/",
             "SoureCode\\Component\\Timestampable\\": "src/SoureCode/Component/Timestampable/"
         },
         "exclude-from-classmap": [
+            "/src/SoureCode/Bundle/AuthorableBundle/Tests",
             "/src/SoureCode/Bundle/TimestampableBundle/Tests",
+            "/src/SoureCode/Component/Authorable/Tests",
+            "/src/SoureCode/Component/DoctrineExtensions/Tests",
             "/src/SoureCode/Component/Timestampable/Tests"
         ]
     },
     "autoload-dev": {
         "psr-4": {
+            "SoureCode\\Bundle\\AuthorableBundle\\Tests\\": "src/SoureCode/Bundle/AuthorableBundle/Tests/",
             "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "src/SoureCode/Bundle/TimestampableBundle/Tests/",
+            "SoureCode\\Component\\Authorable\\Tests\\": "src/SoureCode/Component/Authorable/Tests/",
+            "SoureCode\\Component\\DoctrineExtensions\\Tests\\": "src/SoureCode/Component/DoctrineExtensions/Tests/",
             "SoureCode\\Component\\Timestampable\\Tests\\": "src/SoureCode/Component/Timestampable/Tests/"
         }
     },

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Component\Timestampable\Metadata;
+namespace SoureCode\Component\Authorable\Metadata;
 
 use SoureCode\Component\DoctrineExtensions\Metadata\ChangeBindingInterface;
 
-final class ChangedAtBinding implements ChangeBindingInterface
+final class ChangedByBinding implements ChangeBindingInterface
 {
     /**
      * @param list<string> $fields
@@ -16,7 +16,6 @@ final class ChangedAtBinding implements ChangeBindingInterface
         public readonly array $fields,
         public readonly bool $matchValue,
         public readonly mixed $value,
-        public readonly string $type,
     ) {
     }
 

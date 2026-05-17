@@ -1,0 +1,18 @@
+{
+    "name": "sourecode/authorable-bundle",
+    "type": "symfony-bundle",
+    "description": "Symfony bundle integration for sourecode/authorable.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "sourecode/authorable": "self.version"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Bundle\\AuthorableBundle\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Bundle\\AuthorableBundle\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}

@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 use SoureCode\Component\Timestampable\EventListener\TimestampableListener;
 use SoureCode\Component\Timestampable\Metadata\TimestampableMetadataFactory;
 use SoureCode\Component\Timestampable\Clock\TimestampFactory;
-use SoureCode\Component\Timestampable\ChangeSet\ChangeSetMatcher;
+use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
 use SoureCode\Component\Timestampable\Tests\Fixtures\Article;
 use Symfony\Component\Clock\MockClock;
 

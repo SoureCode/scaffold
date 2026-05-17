@@ -6,7 +6,7 @@ namespace SoureCode\Component\Timestampable\Tests\ChangeSet;
 
 use Doctrine\ORM\UnitOfWork;
 use PHPUnit\Framework\TestCase;
-use SoureCode\Component\Timestampable\ChangeSet\ChangeSetMatcher;
+use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
 use SoureCode\Component\Timestampable\Metadata\ChangedAtBinding;
 use SoureCode\Component\Timestampable\Tests\Fixtures\Post;
 use SoureCode\Component\Timestampable\Tests\Fixtures\Status;

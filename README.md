@@ -36,8 +36,11 @@ vendor/bin/phpunit
 
 | Package | Path |
 |---------|------|
+| `sourecode/doctrine-extensions` | `src/SoureCode/Component/DoctrineExtensions/` |
 | `sourecode/timestampable` | `src/SoureCode/Component/Timestampable/` |
 | `sourecode/timestampable-bundle` | `src/SoureCode/Bundle/TimestampableBundle/` |
+| `sourecode/authorable` | `src/SoureCode/Component/Authorable/` |
+| `sourecode/authorable-bundle` | `src/SoureCode/Bundle/AuthorableBundle/` |
 
 ## Requirements
 

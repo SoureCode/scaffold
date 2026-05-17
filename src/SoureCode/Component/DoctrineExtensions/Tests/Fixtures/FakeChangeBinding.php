@@ -2,21 +2,20 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Component\Timestampable\Metadata;
+namespace SoureCode\Component\DoctrineExtensions\Tests\Fixtures;
 
 use SoureCode\Component\DoctrineExtensions\Metadata\ChangeBindingInterface;
 
-final class ChangedAtBinding implements ChangeBindingInterface
+final class FakeChangeBinding implements ChangeBindingInterface
 {
     /**
      * @param list<string> $fields
      */
     public function __construct(
-        public readonly \ReflectionProperty $property,
-        public readonly array $fields,
-        public readonly bool $matchValue,
-        public readonly mixed $value,
-        public readonly string $type,
+        private readonly \ReflectionProperty $property,
+        private readonly array $fields,
+        private readonly bool $matchValue = false,
+        private readonly mixed $value = null,
     ) {
     }
 

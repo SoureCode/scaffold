@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Component\Timestampable\ChangeSet;
+namespace SoureCode\Component\DoctrineExtensions\ChangeSet;
 
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\UnitOfWork;
-use SoureCode\Component\Timestampable\Metadata\ChangedAtBinding;
+use SoureCode\Component\DoctrineExtensions\Metadata\ChangeBindingInterface;
 
 final class ChangeSetMatcher
 {
-    public function matches(ChangedAtBinding $binding, object $entity, UnitOfWork $unitOfWork): bool
+    public function matches(ChangeBindingInterface $binding, object $entity, UnitOfWork $unitOfWork): bool
     {
-        foreach ($binding->fields as $field) {
+        foreach ($binding->getFields() as $field) {
             if ($this->matchesPath($binding, $field, $entity, $unitOfWork, new \SplObjectStorage())) {
                 return true;
             }
@@ -21,20 +21,20 @@ final class ChangeSetMatcher
         return false;
     }
 
-    public function valueMatches(ChangedAtBinding $binding, mixed $newValue): bool
+    public function valueMatches(ChangeBindingInterface $binding, mixed $newValue): bool
     {
         if (!$binding->hasValueMatcher()) {
             return true;
         }
 
-        return $this->valuesEqual($newValue, $binding->value);
+        return $this->valuesEqual($newValue, $binding->getValue());
     }
 
     /**
      * @param \SplObjectStorage<object, true> $visited
      */
     private function matchesPath(
-        ChangedAtBinding $binding,
+        ChangeBindingInterface $binding,
         string $path,
         object $entity,
         UnitOfWork $unitOfWork,
@@ -99,7 +99,7 @@ final class ChangeSetMatcher
      * @param \SplObjectStorage<object, true> $visited
      */
     private function matchesNewlyAssignedRelated(
-        ChangedAtBinding $binding,
+        ChangeBindingInterface $binding,
         string $path,
         object $entity,
         UnitOfWork $unitOfWork,

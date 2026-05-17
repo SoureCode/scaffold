@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Component\Timestampable\Metadata;
+namespace SoureCode\Component\Authorable\Metadata;
 
 use SoureCode\Component\DoctrineExtensions\Metadata\BehaviorMetadataInterface;
 
-final class TimestampableMetadata implements BehaviorMetadataInterface
+final class AuthorableMetadata implements BehaviorMetadataInterface
 {
     /**
-     * @param list<CreatedAtBinding> $createdBindings
-     * @param list<UpdatedAtBinding> $updatedBindings
-     * @param list<ChangedAtBinding> $changedBindings
+     * @param list<CreatedByBinding> $createdBindings
+     * @param list<UpdatedByBinding> $updatedBindings
+     * @param list<ChangedByBinding> $changedBindings
      */
     public function __construct(
         public readonly array $createdBindings,

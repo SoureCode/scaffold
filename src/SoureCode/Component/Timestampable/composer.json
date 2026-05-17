@@ -6,7 +6,8 @@
     "require": {
         "php": ">=8.5",
         "doctrine/orm": "^3.6",
-        "symfony/clock": "^8.0"
+        "symfony/clock": "^8.0",
+        "sourecode/doctrine-extensions": "self.version"
     },
     "autoload": {
         "psr-4": { "SoureCode\\Component\\Timestampable\\": "" },

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Timestampable\Metadata;
 
+use SoureCode\Component\DoctrineExtensions\Metadata\BehaviorMetadataFactoryInterface;
 use SoureCode\Component\Timestampable\Attribute\ChangedAt;
 use SoureCode\Component\Timestampable\Attribute\CreatedAt;
 use SoureCode\Component\Timestampable\Attribute\UpdatedAt;
 
-final class TimestampableMetadataFactory
+final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInterface
 {
     /**
      * @var array<class-string, TimestampableMetadata>
