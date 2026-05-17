@@ -1,0 +1,17 @@
+{
+    "name": "sourecode/timestampable",
+    "type": "library",
+    "description": "Automatic created/updated timestamps for Doctrine entities.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Component\\Timestampable\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Component\\Timestampable\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}

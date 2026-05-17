@@ -1,0 +1,33 @@
+{
+    "name": "sourecode/scaffold",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5"
+    },
+    "replace": {
+        "sourecode/timestampable": "self.version",
+        "sourecode/timestampable-bundle": "self.version"
+    },
+    "autoload": {
+        "psr-4": {
+            "SoureCode\\Component\\Timestampable\\": "src/SoureCode/Component/Timestampable/",
+            "SoureCode\\Bundle\\TimestampableBundle\\": "src/SoureCode/Bundle/TimestampableBundle/"
+        },
+        "exclude-from-classmap": ["**/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SoureCode\\Component\\Timestampable\\Tests\\": "src/SoureCode/Component/Timestampable/Tests/",
+            "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "src/SoureCode/Bundle/TimestampableBundle/Tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.5.6"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

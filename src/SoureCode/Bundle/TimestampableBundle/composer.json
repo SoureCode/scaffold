@@ -1,0 +1,18 @@
+{
+    "name": "sourecode/timestampable-bundle",
+    "type": "symfony-bundle",
+    "description": "Symfony bundle integration for sourecode/timestampable.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "sourecode/timestampable": "self.version"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Bundle\\TimestampableBundle\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}
