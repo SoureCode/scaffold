@@ -8,5 +8,5 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 return static function (ContainerConfigurator $container): void {
     $services = $container->services();
 
-    $services->set(ChangeSetMatcher::class)->public();
+    $services->set(ChangeSetMatcher::class);
 };

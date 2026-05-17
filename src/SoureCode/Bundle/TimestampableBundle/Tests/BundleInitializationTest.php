@@ -13,10 +13,10 @@ use SoureCode\Component\Timestampable\Clock\TimestampFactory;
 use SoureCode\Component\Timestampable\EventListener\TimestampableListener;
 use SoureCode\Component\Timestampable\EventListener\TimestampableMappingListener;
 use SoureCode\Component\Timestampable\Metadata\TimestampableMetadataFactory;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use SoureCode\Bundle\DoctrineExtensionsBundle\Testing\AbstractBundleTestCase;
 use Symfony\Component\HttpKernel\KernelInterface;
 
-final class BundleInitializationTest extends KernelTestCase
+final class BundleInitializationTest extends AbstractBundleTestCase
 {
     protected static function getKernelClass(): string
     {

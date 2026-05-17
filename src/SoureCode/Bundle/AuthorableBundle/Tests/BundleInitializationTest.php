@@ -13,10 +13,10 @@ use SoureCode\Component\Authorable\EventListener\AuthorableListener;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use SoureCode\Bundle\DoctrineExtensionsBundle\Testing\AbstractBundleTestCase;
 use Symfony\Component\HttpKernel\KernelInterface;
 
-final class BundleInitializationTest extends KernelTestCase
+final class BundleInitializationTest extends AbstractBundleTestCase
 {
     protected static function getKernelClass(): string
     {

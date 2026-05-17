@@ -10,11 +10,11 @@ use SoureCode\Bundle\AuthorableBundle\AuthorableBundle;
 use SoureCode\Bundle\AuthorableBundle\Security\SecurityAuthorProvider;
 use SoureCode\Bundle\DoctrineExtensionsBundle\DoctrineExtensionsBundle;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use SoureCode\Bundle\DoctrineExtensionsBundle\Testing\AbstractBundleTestCase;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\HttpKernel\KernelInterface;
 
-final class SecurityProviderDefaultTest extends KernelTestCase
+final class SecurityProviderDefaultTest extends AbstractBundleTestCase
 {
     protected static function getKernelClass(): string
     {
