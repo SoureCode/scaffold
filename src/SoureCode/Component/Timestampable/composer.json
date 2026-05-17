@@ -4,7 +4,9 @@
     "description": "Automatic created/updated timestamps for Doctrine entities.",
     "license": "proprietary",
     "require": {
-        "php": ">=8.5"
+        "php": ">=8.5",
+        "doctrine/orm": "^3.6",
+        "symfony/clock": "^8.0"
     },
     "autoload": {
         "psr-4": { "SoureCode\\Component\\Timestampable\\": "" },
@@ -13,5 +15,9 @@
     "autoload-dev": {
         "psr-4": { "SoureCode\\Component\\Timestampable\\Tests\\": "Tests/" }
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "require-dev": {
+        "phpunit/phpunit": "^13.1",
+        "symfony/cache": "^8.0"
+    }
 }

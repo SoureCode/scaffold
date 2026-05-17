@@ -1,0 +1,105 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$root = dirname(__DIR__);
+$rootFile = $root . '/composer.json';
+$packagesGlob = $root . '/src/*/*/*/composer.json';
+
+if (!is_file($rootFile)) {
+    fwrite(STDERR, "missing root composer.json: {$rootFile}\n");
+    exit(1);
+}
+
+$rootJson = json_decode((string) file_get_contents($rootFile), true, flags: JSON_THROW_ON_ERROR);
+
+$packageFiles = glob($packagesGlob) ?: [];
+sort($packageFiles);
+
+$require = ['php' => $rootJson['require']['php'] ?? '>=8.5'];
+$requireDev = [];
+$replace = [];
+$autoload = [];
+$autoloadDev = [];
+$excludeFromClassmap = [];
+
+$packageNames = [];
+foreach ($packageFiles as $file) {
+    $json = json_decode((string) file_get_contents($file), true, flags: JSON_THROW_ON_ERROR);
+    $name = $json['name'] ?? null;
+    if ($name === null) {
+        fwrite(STDERR, "package missing name: {$file}\n");
+        exit(1);
+    }
+    $packageNames[$name] = $file;
+}
+
+$conflicts = [];
+foreach ($packageFiles as $file) {
+    $json = json_decode((string) file_get_contents($file), true, flags: JSON_THROW_ON_ERROR);
+    $name = $json['name'];
+    $relativeDir = substr(dirname($file), strlen($root) + 1);
+    $replace[$name] = 'self.version';
+
+    foreach (['require', 'require-dev'] as $section) {
+        foreach ($json[$section] ?? [] as $dep => $version) {
+            if ($dep === 'php' || isset($packageNames[$dep])) {
+                continue;
+            }
+            $target = $section === 'require' ? 'require' : 'requireDev';
+            $existing = $target === 'require' ? ($require[$dep] ?? null) : ($requireDev[$dep] ?? null);
+            if ($existing !== null && $existing !== $version) {
+                $conflicts[] = "{$dep}: {$existing} vs {$version} (in {$name})";
+                continue;
+            }
+            if ($target === 'require') {
+                $require[$dep] = $version;
+            } else {
+                $requireDev[$dep] = $version;
+            }
+        }
+    }
+
+    foreach ($json['autoload']['psr-4'] ?? [] as $ns => $path) {
+        $autoload[$ns] = trim($relativeDir . '/' . $path, '/') . '/';
+    }
+    foreach ($json['autoload-dev']['psr-4'] ?? [] as $ns => $path) {
+        $autoloadDev[$ns] = trim($relativeDir . '/' . $path, '/') . '/';
+    }
+    foreach ($json['autoload']['exclude-from-classmap'] ?? [] as $pattern) {
+        $excludeFromClassmap[] = '/' . trim($relativeDir . $pattern, '/');
+    }
+}
+
+if ($conflicts !== []) {
+    fwrite(STDERR, "version conflicts:\n  " . implode("\n  ", $conflicts) . "\n");
+    exit(1);
+}
+
+ksort($require);
+ksort($requireDev);
+ksort($replace);
+ksort($autoload);
+ksort($autoloadDev);
+
+$rootJson['require'] = $require;
+if ($requireDev !== []) {
+    $rootJson['require-dev'] = $requireDev;
+} else {
+    unset($rootJson['require-dev']);
+}
+$rootJson['replace'] = $replace;
+$rootJson['autoload'] = ['psr-4' => $autoload, 'exclude-from-classmap' => $excludeFromClassmap];
+$rootJson['autoload-dev'] = ['psr-4' => $autoloadDev];
+
+file_put_contents(
+    $rootFile,
+    json_encode($rootJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n",
+);
+
+printf("merged %d package(s)\n", count($packageFiles));
+foreach ($packageFiles as $file) {
+    $rel = substr($file, strlen($root) + 1);
+    printf("  - %s\n", $rel);
+}
