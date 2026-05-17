@@ -3,20 +3,24 @@
     "type": "library",
     "license": "proprietary",
     "require": {
+        "doctrine/doctrine-bundle": "^3.2",
         "doctrine/orm": "^3.6",
         "php": ">=8.5",
-        "symfony/clock": "^8.0"
+        "symfony/clock": "^8.0",
+        "symfony/framework-bundle": "^8.0"
     },
     "replace": {
         "sourecode/authorable": "self.version",
         "sourecode/authorable-bundle": "self.version",
         "sourecode/doctrine-extensions": "self.version",
+        "sourecode/doctrine-extensions-bundle": "self.version",
         "sourecode/timestampable": "self.version",
         "sourecode/timestampable-bundle": "self.version"
     },
     "autoload": {
         "psr-4": {
             "SoureCode\\Bundle\\AuthorableBundle\\": "src/SoureCode/Bundle/AuthorableBundle/",
+            "SoureCode\\Bundle\\DoctrineExtensionsBundle\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/",
             "SoureCode\\Bundle\\TimestampableBundle\\": "src/SoureCode/Bundle/TimestampableBundle/",
             "SoureCode\\Component\\Authorable\\": "src/SoureCode/Component/Authorable/",
             "SoureCode\\Component\\DoctrineExtensions\\": "src/SoureCode/Component/DoctrineExtensions/",
@@ -24,6 +28,7 @@
         },
         "exclude-from-classmap": [
             "/src/SoureCode/Bundle/AuthorableBundle/Tests",
+            "/src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests",
             "/src/SoureCode/Bundle/TimestampableBundle/Tests",
             "/src/SoureCode/Component/Authorable/Tests",
             "/src/SoureCode/Component/DoctrineExtensions/Tests",
@@ -33,6 +38,7 @@
     "autoload-dev": {
         "psr-4": {
             "SoureCode\\Bundle\\AuthorableBundle\\Tests\\": "src/SoureCode/Bundle/AuthorableBundle/Tests/",
+            "SoureCode\\Bundle\\DoctrineExtensionsBundle\\Tests\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests/",
             "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "src/SoureCode/Bundle/TimestampableBundle/Tests/",
             "SoureCode\\Component\\Authorable\\Tests\\": "src/SoureCode/Component/Authorable/Tests/",
             "SoureCode\\Component\\DoctrineExtensions\\Tests\\": "src/SoureCode/Component/DoctrineExtensions/Tests/",
@@ -48,7 +54,10 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require-dev": {
+        "doctrine/doctrine-bundle": "^3.2",
+        "nyholm/symfony-bundle-test": "^3.1",
         "phpunit/phpunit": "^13.1",
-        "symfony/cache": "^8.0"
+        "symfony/cache": "^8.0",
+        "symfony/security-bundle": "^8.0"
     }
 }

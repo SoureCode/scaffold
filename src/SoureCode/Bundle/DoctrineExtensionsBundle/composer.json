@@ -1,0 +1,24 @@
+{
+    "name": "sourecode/doctrine-extensions-bundle",
+    "type": "symfony-bundle",
+    "description": "Symfony bundle integration for sourecode/doctrine-extensions.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "sourecode/doctrine-extensions": "self.version",
+        "symfony/framework-bundle": "^8.0"
+    },
+    "require-dev": {
+        "doctrine/doctrine-bundle": "^3.2",
+        "nyholm/symfony-bundle-test": "^3.1",
+        "phpunit/phpunit": "^13.1"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Bundle\\DoctrineExtensionsBundle\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Bundle\\DoctrineExtensionsBundle\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}

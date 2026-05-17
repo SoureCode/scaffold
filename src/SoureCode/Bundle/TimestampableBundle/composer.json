@@ -5,7 +5,11 @@
     "license": "proprietary",
     "require": {
         "php": ">=8.5",
-        "sourecode/timestampable": "self.version"
+        "sourecode/timestampable": "self.version",
+        "symfony/framework-bundle": "^8.0",
+        "doctrine/doctrine-bundle": "^3.2",
+        "symfony/clock": "^8.0",
+        "sourecode/doctrine-extensions-bundle": "self.version"
     },
     "autoload": {
         "psr-4": { "SoureCode\\Bundle\\TimestampableBundle\\": "" },
@@ -14,5 +18,9 @@
     "autoload-dev": {
         "psr-4": { "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "Tests/" }
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "require-dev": {
+        "nyholm/symfony-bundle-test": "^3.1",
+        "phpunit/phpunit": "^13.1"
+    }
 }
