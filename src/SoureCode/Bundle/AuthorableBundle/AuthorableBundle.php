@@ -6,6 +6,7 @@ namespace SoureCode\Bundle\AuthorableBundle;
 
 use SoureCode\Bundle\AuthorableBundle\Security\SecurityAuthorProvider;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
+use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -24,11 +25,15 @@ final class AuthorableBundle extends AbstractBundle
                     ->defaultNull()
                     ->info('Service id implementing ' . AuthorProviderInterface::class . '. Defaults to SecurityAuthorProvider when symfony/security-bundle is installed.')
                 ->end()
+                ->scalarNode('user_class')
+                    ->defaultNull()
+                    ->info('Concrete entity class used as ManyToOne target for every CreatedBy/UpdatedBy/ChangedBy binding. When null, the property\'s PHP type is used.')
+                ->end()
             ->end();
     }
 
     /**
-     * @param array{author_provider: ?string} $config
+     * @param array{author_provider: ?string, user_class: ?string} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
@@ -49,5 +54,10 @@ final class AuthorableBundle extends AbstractBundle
         }
 
         $builder->setAlias(AuthorProviderInterface::class, $providerId);
+
+        if ($config['user_class'] !== null) {
+            $builder->getDefinition(AuthorableMappingListener::class)
+                ->replaceArgument(1, $config['user_class']);
+        }
     }
 }

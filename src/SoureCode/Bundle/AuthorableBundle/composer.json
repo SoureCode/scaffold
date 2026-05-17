@@ -8,7 +8,8 @@
         "sourecode/authorable": "self.version",
         "symfony/framework-bundle": "^8.0",
         "doctrine/doctrine-bundle": "^3.2",
-        "sourecode/doctrine-extensions-bundle": "self.version"
+        "sourecode/doctrine-extensions-bundle": "self.version",
+        "symfony/security-core": "^8.0"
     },
     "autoload": {
         "psr-4": { "SoureCode\\Bundle\\AuthorableBundle\\": "" },

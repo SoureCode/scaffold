@@ -7,7 +7,8 @@
         "doctrine/orm": "^3.6",
         "php": ">=8.5",
         "symfony/clock": "^8.0",
-        "symfony/framework-bundle": "^8.0"
+        "symfony/framework-bundle": "^8.0",
+        "symfony/security-core": "^8.0"
     },
     "replace": {
         "sourecode/authorable": "self.version",

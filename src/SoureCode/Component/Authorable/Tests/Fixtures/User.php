@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'authorable_user')]
-class User
+class User implements AuthorContract
 {
     #[ORM\Id]
     #[ORM\Column(type: Types::INTEGER)]

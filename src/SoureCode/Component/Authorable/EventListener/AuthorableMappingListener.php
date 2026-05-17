@@ -10,8 +10,12 @@ use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 
 final class AuthorableMappingListener
 {
+    /**
+     * @param class-string|null $userClass when set, overrides the property's PHP type as the target entity for every binding
+     */
     public function __construct(
         private readonly AuthorableMetadataFactory $metadataFactory,
+        private readonly ?string $userClass = null,
     ) {
     }
 
@@ -49,25 +53,46 @@ final class AuthorableMappingListener
             return;
         }
 
-        $type = $property->getType();
-
-        if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
-            throw new \LogicException(\sprintf(
-                'Authorable mapping requires an object type on "%s::$%s", got %s.',
-                $classMetadata->getName(),
-                $fieldName,
-                $type === null ? 'no type' : (string) $type,
-            ));
-        }
+        $targetEntity = $this->userClass ?? $this->resolveTargetFromProperty($classMetadata->getName(), $property);
 
         $classMetadata->mapManyToOne([
             'fieldName' => $fieldName,
-            'targetEntity' => $type->getName(),
+            'targetEntity' => $targetEntity,
             'joinColumns' => [[
                 'name' => null,
                 'referencedColumnName' => 'id',
                 'nullable' => $nullable,
             ]],
         ]);
+    }
+
+    /**
+     * @param class-string $className
+     */
+    private function resolveTargetFromProperty(string $className, \ReflectionProperty $property): string
+    {
+        $type = $property->getType();
+
+        if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
+            throw new \LogicException(\sprintf(
+                'Authorable mapping requires an object type on "%s::$%s", got %s. Configure "user_class" to override.',
+                $className,
+                $property->getName(),
+                $type === null ? 'no type' : (string) $type,
+            ));
+        }
+
+        $name = $type->getName();
+
+        if (!class_exists($name)) {
+            throw new \LogicException(\sprintf(
+                'Authorable mapping cannot use non-class type "%s" on "%s::$%s". Configure "user_class" to point at a concrete entity.',
+                $name,
+                $className,
+                $property->getName(),
+            ));
+        }
+
+        return $name;
     }
 }
