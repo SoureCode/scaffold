@@ -43,21 +43,27 @@ class Article
 
 Insert does not snapshot. The first time `title` or `body` changes and the unit-of-work is flushed, a row appears in `article_version` with `version = 1`.
 
-## Repository
+## Service
 
-Mix `VersionableRepositoryTrait` into a Doctrine repository:
+Inject `VersionerInterface` (alias of `Versioner`):
 
 ```php
-final class ArticleRepository extends EntityRepository
+use SoureCode\Component\Versionable\VersionerInterface;
+
+final class ArticleHistoryController
 {
-    use VersionableRepositoryTrait;
+    public function __construct(
+        private readonly VersionerInterface $versioner,
+    ) {}
 }
 ```
 
+The bundle wires the service from `EntityManagerInterface` + `VersionableMetadataFactory`.
+
 ```php
-$repository->findHistory($id);          // list of rows, oldest first
-$repository->findByVersion($id, 2);     // single row or null
-$repository->findLatestVersion($id);    // single row or null
+$versioner->findHistory(Article::class, $id);          // list of rows, oldest first
+$versioner->findByVersion(Article::class, $id, 2);     // single row or null
+$versioner->findLatestVersion(Article::class, $id);    // single row or null
 ```
 
 Rows come back as associative arrays — the version table is a flat snapshot, not a Doctrine entity.
@@ -65,11 +71,11 @@ Rows come back as associative arrays — the version table is a flat snapshot, n
 ## Reverting an entity
 
 ```php
-$repository->applyVersion($entity, 2);
+$versioner->applyVersion($entity, 2);
 $em->flush(); // writes a new version row capturing the revert
 ```
 
-Mutates the live entity in place:
+Mutates the live entity in place (class is inferred from the entity):
 
 - Scalar fields are restored via the matching Doctrine type.
 - Single-card associations are re-attached at their **current** state by looking up the stored FK (`$em->find(...)`).

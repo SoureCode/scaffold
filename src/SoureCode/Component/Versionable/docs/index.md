@@ -18,7 +18,7 @@ Built on top of [`sourecode/doctrine-extensions`](../../DoctrineExtensions/docs/
 | `VersionableMetadataFactory` | Reflects classes and caches their `#[Versioned]` bindings |
 | `VersionableListener` | Detects changes on `onFlush` and writes snapshot rows on `postFlush` |
 | `VersionableSchemaListener` | Generates the `<entity>_version` table (and join tables) during schema build |
-| `VersionableRepositoryTrait` | Read history, fetch a specific version, revert an entity to a past version |
+| `VersionerInterface` / `Versioner` | Read history, fetch a specific version, revert an entity to a past version |
 | `target_version` | When a snapshotted relation points at a `Versionable` target, the target's current version is recorded too |
 
 ## Snapshot triggers

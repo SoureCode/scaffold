@@ -38,9 +38,19 @@ class Article
         return $this->id;
     }
 
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
     public function setTitle(string $title): void
     {
         $this->title = $title;
+    }
+
+    public function getBody(): ?string
+    {
+        return $this->body;
     }
 
     public function setBody(?string $body): void

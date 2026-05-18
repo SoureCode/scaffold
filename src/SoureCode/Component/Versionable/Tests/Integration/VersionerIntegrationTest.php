@@ -8,7 +8,6 @@ use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Tools\DsnParser;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Events;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -17,14 +16,15 @@ use PHPUnit\Framework\TestCase;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
-use SoureCode\Component\Versionable\Repository\VersionableRepositoryTrait;
 use SoureCode\Component\Versionable\Tests\Fixtures\Article;
+use SoureCode\Component\Versionable\Versioner;
 use Symfony\Component\Clock\MockClock;
 
-final class VersionableRepositoryTraitTest extends TestCase
+final class VersionerIntegrationTest extends TestCase
 {
     private EntityManagerInterface $entityManager;
     private MockClock $clock;
+    private Versioner $versioner;
 
     protected function setUp(): void
     {
@@ -56,9 +56,11 @@ final class VersionableRepositoryTraitTest extends TestCase
         (new SchemaTool($this->entityManager))->createSchema([
             $this->entityManager->getClassMetadata(Article::class),
         ]);
+
+        $this->versioner = new Versioner($this->entityManager, $metadataFactory);
     }
 
-    public function testFindHistoryReturnsRowsInChronologicalOrder(): void
+    public function testFindHistoryReturnsHydratedEntitiesInChronologicalOrder(): void
     {
         $article = new Article('one');
         $this->entityManager->persist($article);
@@ -69,15 +71,15 @@ final class VersionableRepositoryTraitTest extends TestCase
         $article->setTitle('three');
         $this->entityManager->flush();
 
-        $repository = $this->buildRepository();
-        $history = $repository->findHistory($article->getId());
+        $history = $this->versioner->findHistory(Article::class, $article->getId());
 
         self::assertCount(2, $history);
-        self::assertSame('two', $history[0]['title']);
-        self::assertSame('three', $history[1]['title']);
+        self::assertInstanceOf(Article::class, $history[0]);
+        self::assertSame('two', $history[0]->getTitle());
+        self::assertSame('three', $history[1]->getTitle());
     }
 
-    public function testFindByVersionReturnsSingleRow(): void
+    public function testFindByVersionReturnsHydratedEntity(): void
     {
         $article = new Article('alpha');
         $this->entityManager->persist($article);
@@ -88,14 +90,18 @@ final class VersionableRepositoryTraitTest extends TestCase
         $article->setTitle('gamma');
         $this->entityManager->flush();
 
-        $repository = $this->buildRepository();
+        $first = $this->versioner->findByVersion(Article::class, $article->getId(), 1);
+        self::assertInstanceOf(Article::class, $first);
+        self::assertSame('beta', $first->getTitle());
 
-        self::assertSame('beta', $repository->findByVersion($article->getId(), 1)['title'] ?? null);
-        self::assertSame('gamma', $repository->findByVersion($article->getId(), 2)['title'] ?? null);
-        self::assertNull($repository->findByVersion($article->getId(), 99));
+        $second = $this->versioner->findByVersion(Article::class, $article->getId(), 2);
+        self::assertInstanceOf(Article::class, $second);
+        self::assertSame('gamma', $second->getTitle());
+
+        self::assertNull($this->versioner->findByVersion(Article::class, $article->getId(), 99));
     }
 
-    public function testFindLatestVersionReturnsHighestVersionRow(): void
+    public function testFindLatestVersionReturnsHighestVersionEntity(): void
     {
         $article = new Article('alpha');
         $this->entityManager->persist($article);
@@ -106,9 +112,9 @@ final class VersionableRepositoryTraitTest extends TestCase
         $article->setTitle('gamma');
         $this->entityManager->flush();
 
-        $latest = $this->buildRepository()->findLatestVersion($article->getId());
-        self::assertSame('gamma', $latest['title'] ?? null);
-        self::assertSame(2, (int) ($latest['version'] ?? 0));
+        $latest = $this->versioner->findLatestVersion(Article::class, $article->getId());
+        self::assertInstanceOf(Article::class, $latest);
+        self::assertSame('gamma', $latest->getTitle());
     }
 
     public function testApplyVersionMutatesEntityInPlace(): void
@@ -125,12 +131,10 @@ final class VersionableRepositoryTraitTest extends TestCase
         $article->setBody('body-gamma');
         $this->entityManager->flush();
 
-        $reflection = new \ReflectionClass($article);
+        $this->versioner->applyVersion($article, 1);
 
-        $this->buildRepository()->applyVersion($article, 1);
-
-        self::assertSame('beta', $reflection->getProperty('title')->getValue($article));
-        self::assertSame('body-beta', $reflection->getProperty('body')->getValue($article));
+        self::assertSame('beta', $article->getTitle());
+        self::assertSame('body-beta', $article->getBody());
     }
 
     public function testApplyVersionThrowsForUnknownVersion(): void
@@ -143,13 +147,6 @@ final class VersionableRepositoryTraitTest extends TestCase
         $this->entityManager->flush();
 
         $this->expectException(\RuntimeException::class);
-        $this->buildRepository()->applyVersion($article, 99);
-    }
-
-    private function buildRepository(): object
-    {
-        return new class($this->entityManager, $this->entityManager->getClassMetadata(Article::class)) extends EntityRepository {
-            use VersionableRepositoryTrait;
-        };
+        $this->versioner->applyVersion($article, 99);
     }
 }

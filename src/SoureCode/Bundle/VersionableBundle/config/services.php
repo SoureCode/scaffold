@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
+use SoureCode\Component\Versionable\Versioner;
+use SoureCode\Component\Versionable\VersionerInterface;
 use Symfony\Component\Clock\Clock;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
@@ -29,4 +32,13 @@ return static function (ContainerConfigurator $container): void {
     $services->set(VersionableSchemaListener::class)
         ->args([service(VersionableMetadataFactory::class)])
         ->tag('doctrine.event_listener', ['event' => 'postGenerateSchema']);
+
+    $services->set(Versioner::class)
+        ->args([
+            service(EntityManagerInterface::class),
+            service(VersionableMetadataFactory::class),
+        ])
+        ->public();
+
+    $services->alias(VersionerInterface::class, Versioner::class)->public();
 };
