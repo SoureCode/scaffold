@@ -40,12 +40,15 @@ $mappingListener = new TimestampableMappingListener($metadataFactory);
 $em->getEventManager()->addEventListener([Events::loadClassMetadata], $mappingListener);
 ```
 
-For each property carrying `#[CreatedAt]`, `#[UpdatedAt]`, or `#[ChangedAt]` **without** a `#[ORM\Column]` mapping, registers a column:
+For each property carrying `#[CreatedAt]`, `#[UpdatedAt]`, `#[ChangedAt]`, or `#[DeletedAt]` **without** a `#[ORM\Column]` mapping, registers a column:
 
 | attribute | nullable column |
 |-----------|-----------------|
 | `CreatedAt` | `false` |
 | `UpdatedAt` | from `nullable:` argument |
 | `ChangedAt` | `true` |
+| `DeletedAt` | `true` |
+
+`#[DeletedAt]` is a marker only — the flush listener never fills it. The mapping listener registers the column so consumers can drop the attribute onto a property and rely on the soft-delete helper (e.g. `Removable`) to set it.
 
 If `#[ORM\Column]` already exists, the listener leaves it alone — you can always override.

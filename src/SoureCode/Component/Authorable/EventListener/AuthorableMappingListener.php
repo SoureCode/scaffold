@@ -39,6 +39,10 @@ final class AuthorableMappingListener
         foreach ($metadata->changedBindings as $binding) {
             $this->mapIfMissing($classMetadata, $binding->property, true);
         }
+
+        foreach ($metadata->deletedBindings as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->property, true);
+        }
     }
 
     private function mapIfMissing(ClassMetadata $classMetadata, \ReflectionProperty $property, bool $nullable): void

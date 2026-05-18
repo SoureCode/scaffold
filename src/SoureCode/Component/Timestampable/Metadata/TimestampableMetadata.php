@@ -12,11 +12,13 @@ final class TimestampableMetadata implements BehaviorMetadataInterface
      * @param list<CreatedAtBinding> $createdBindings
      * @param list<UpdatedAtBinding> $updatedBindings
      * @param list<ChangedAtBinding> $changedBindings
+     * @param list<DeletedAtBinding> $deletedBindings
      */
     public function __construct(
         public readonly array $createdBindings,
         public readonly array $updatedBindings,
         public readonly array $changedBindings,
+        public readonly array $deletedBindings = [],
     ) {
     }
 
@@ -35,10 +37,19 @@ final class TimestampableMetadata implements BehaviorMetadataInterface
         return $this->changedBindings;
     }
 
+    /**
+     * @return list<DeletedAtBinding>
+     */
+    public function getDeletedBindings(): array
+    {
+        return $this->deletedBindings;
+    }
+
     public function isEmpty(): bool
     {
         return $this->createdBindings === []
             && $this->updatedBindings === []
-            && $this->changedBindings === [];
+            && $this->changedBindings === []
+            && $this->deletedBindings === [];
     }
 }

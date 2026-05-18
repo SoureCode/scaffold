@@ -30,13 +30,16 @@ $mappingListener = new AuthorableMappingListener($metadataFactory);
 $em->getEventManager()->addEventListener([Events::loadClassMetadata], $mappingListener);
 ```
 
-For each property carrying `#[CreatedBy]`, `#[UpdatedBy]`, or `#[ChangedBy]` **without** a `#[ORM\ManyToOne]` mapping, registers an association:
+For each property carrying `#[CreatedBy]`, `#[UpdatedBy]`, `#[ChangedBy]`, or `#[DeletedBy]` **without** a `#[ORM\ManyToOne]` mapping, registers an association:
 
 | attribute | join column nullable |
 |-----------|---------------------|
 | `CreatedBy` | `false` |
 | `UpdatedBy` | from `nullable:` argument |
 | `ChangedBy` | `true` |
+| `DeletedBy` | `true` |
+
+`#[DeletedBy]` is a marker only — the flush listener never fills it. The mapping listener registers the association so the soft-delete helper (e.g. `Removable`) has a target to write to.
 
 The target entity is taken from the property's PHP type (must be a non-builtin object type, otherwise throws). If `#[ORM\ManyToOne]` already exists, the listener leaves it alone.
 

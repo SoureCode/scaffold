@@ -12,11 +12,13 @@ final class AuthorableMetadata implements BehaviorMetadataInterface
      * @param list<CreatedByBinding> $createdBindings
      * @param list<UpdatedByBinding> $updatedBindings
      * @param list<ChangedByBinding> $changedBindings
+     * @param list<DeletedByBinding> $deletedBindings
      */
     public function __construct(
         public readonly array $createdBindings,
         public readonly array $updatedBindings,
         public readonly array $changedBindings,
+        public readonly array $deletedBindings = [],
     ) {
     }
 
@@ -35,10 +37,19 @@ final class AuthorableMetadata implements BehaviorMetadataInterface
         return $this->changedBindings;
     }
 
+    /**
+     * @return list<DeletedByBinding>
+     */
+    public function getDeletedBindings(): array
+    {
+        return $this->deletedBindings;
+    }
+
     public function isEmpty(): bool
     {
         return $this->createdBindings === []
             && $this->updatedBindings === []
-            && $this->changedBindings === [];
+            && $this->changedBindings === []
+            && $this->deletedBindings === [];
     }
 }

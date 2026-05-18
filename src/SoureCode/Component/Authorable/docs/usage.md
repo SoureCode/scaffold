@@ -77,6 +77,19 @@ private ?User $contentEditedBy = null;
 private ?User $lastTaggedBy = null;
 ```
 
+## Soft-delete marker
+
+```php
+#[DeletedBy]
+private ?User $deletedBy = null;
+```
+
+`#[DeletedBy]` is a pure marker. The flush listener never touches it — the caller assigns the value. Mapping listener registers a nullable `ManyToOne` to the property's PHP type.
+
+Soft-remove orchestration (call `AuthorProviderInterface`, fill `deletedBy`, flush) lives in the [`Removable`](../../Removable/docs/index.md) component, which reads the marker via Authorable metadata.
+
+The `AuthorableBundle` ships a [`DeletedByTrait`](../../../Bundle/AuthorableBundle/Doctrine/DeletedByTrait.php) typed against Symfony's `UserInterface` — same pattern as `AuthorableTrait`.
+
 ## Mapping override
 
 Add `#[ORM\ManyToOne]` manually only when you need to override defaults (custom join column name, fetch mode, target entity disambiguation, etc.):

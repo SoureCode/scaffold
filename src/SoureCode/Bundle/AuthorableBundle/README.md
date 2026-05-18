@@ -67,3 +67,19 @@ class Article
 ```
 
 The trait declares `createdBy`/`updatedBy` typed as `Symfony\Component\Security\Core\User\UserInterface` and carries the `#[CreatedBy]` + `#[UpdatedBy]` attributes. Set `user_class:` in your bundle config so the mapping listener knows which concrete entity to use as the FK target.
+
+### Bundled `DeletedByTrait`
+
+For the soft-delete blame field, drop this trait alongside `AuthorableTrait` (or on its own):
+
+```php
+use SoureCode\Bundle\AuthorableBundle\Doctrine\DeletedByTrait;
+
+#[ORM\Entity]
+class Article
+{
+    use DeletedByTrait;
+}
+```
+
+Declares `$deletedBy` typed as `UserInterface` with `#[DeletedBy]`. Pure marker — the field is filled by [`Removable`](../../Component/Removable/docs/index.md) on soft-remove, not by the flush listener.

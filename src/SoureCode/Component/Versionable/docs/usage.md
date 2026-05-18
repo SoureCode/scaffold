@@ -99,15 +99,23 @@ Each snapshot now records the author that produced it — no Versionable-side AP
 
 ### Soft-delete history
 
-Mark the soft-delete timestamp tracked:
+Mark the [Timestampable](../../Timestampable/docs/index.md) `#[DeletedAt]` and [Authorable](../../Authorable/docs/index.md) `#[DeletedBy]` markers tracked:
 
 ```php
+use SoureCode\Component\Authorable\Attribute\DeletedBy;
+use SoureCode\Component\Timestampable\Attribute\DeletedAt;
+use SoureCode\Component\Versionable\Attribute\Versioned;
+
 #[Versioned]
-#[ORM\Column(nullable: true)]
+#[DeletedAt]
 private ?\DateTimeImmutable $deletedAt = null;
+
+#[Versioned]
+#[DeletedBy]
+private ?User $deletedBy = null;
 ```
 
-The transition `null → timestamp` is just another snapshot. Restoration (`timestamp → null`) is symmetric and produces another snapshot — undelete history comes for free.
+The soft-remove operation lives in the [`Removable`](../../Removable/docs/index.md) repository trait — it fills both markers in one call. Versionable then snapshots the transition like any other field: the `null → timestamp` change produces a snapshot row, and a subsequent `restore()` (`timestamp → null`) produces a symmetric one. Undelete history comes for free.
 
 ### General rule
 

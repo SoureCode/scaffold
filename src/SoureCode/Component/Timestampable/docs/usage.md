@@ -1,23 +1,8 @@
 # Usage patterns
 
-Three valid opt-in styles. Mix freely.
+Two valid opt-in styles at the component layer: attributes or interface fallback. Per-attribute convenience traits (`CreatedAtTrait`, `UpdatedAtTrait`, `DeletedAtTrait`) live in the [bundle](../../../Bundle/TimestampableBundle/README.md).
 
-## 1. Trait
-
-`TimestampableTrait` ships `createdAt` + `updatedAt` with attributes already in place.
-
-```php
-use SoureCode\Component\Timestampable\TimestampableInterface;
-use SoureCode\Component\Timestampable\TimestampableTrait;
-
-#[ORM\Entity]
-class Article implements TimestampableInterface
-{
-    use TimestampableTrait;
-}
-```
-
-## 2. Interface fallback (no attributes)
+## 1. Interface fallback (no attributes)
 
 Implement `TimestampableInterface` with your own setters. The listener falls back to interface calls only when **no** attributes are present on the entity.
 
@@ -31,7 +16,7 @@ final class LegacyArticle implements TimestampableInterface
 }
 ```
 
-## 3. Bare attributes (custom property names)
+## 2. Bare attributes (custom property names)
 
 ```php
 final class Note
@@ -98,6 +83,19 @@ private ?\DateTimeImmutable $lastChannelTitleChangedAt = null;
 #[ChangedAt(field: 'tags')]
 private ?\DateTimeImmutable $tagsChangedAt = null;
 ```
+
+## Soft-delete marker
+
+```php
+#[DeletedAt]
+private ?\DateTimeImmutable $deletedAt = null;
+```
+
+`#[DeletedAt]` is a pure marker. The flush listener never touches it — the caller assigns the value. Mapping listener registers a nullable column matching the configured `type:`.
+
+Soft-remove orchestration (set `deletedAt = $clock->now()`, set author, flush) lives in the [`Removable`](../../Removable/docs/index.md) component, which reads the marker via Timestampable metadata.
+
+A ready-made `DeletedAtTrait` ships in the [bundle](../../../Bundle/TimestampableBundle/README.md).
 
 ## Auto-mapping vs explicit `#[ORM\Column]`
 

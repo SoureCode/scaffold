@@ -1,6 +1,6 @@
 # Attributes
 
-All three target a property (`\Attribute::TARGET_PROPERTY`).
+All four target a property (`\Attribute::TARGET_PROPERTY`).
 
 ## `#[CreatedBy]`
 
@@ -60,3 +60,14 @@ Set when one of the watched fields appears in the entity's changeset.
 
 - `field: []` → `InvalidArgumentException`
 - `matchValue: true` with multiple fields → `InvalidArgumentException`
+
+## `#[DeletedBy]`
+
+```php
+#[DeletedBy]
+private ?User $deletedBy = null;
+```
+
+**Pure marker.** The flush listener never fills this field — the caller assigns it (typically through a soft-remove helper such as the `Removable` component). The mapping listener auto-registers a nullable `ManyToOne` to the property's PHP type when no `#[ORM\ManyToOne]` is declared.
+
+No arguments.

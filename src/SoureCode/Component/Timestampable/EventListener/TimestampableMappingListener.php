@@ -35,6 +35,10 @@ final class TimestampableMappingListener
         foreach ($metadata->changedBindings as $binding) {
             $this->mapIfMissing($classMetadata, $binding->property->getName(), $binding->type, true);
         }
+
+        foreach ($metadata->deletedBindings as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->property->getName(), $binding->type, true);
+        }
     }
 
     private function mapIfMissing(ClassMetadata $classMetadata, string $fieldName, string $type, bool $nullable): void

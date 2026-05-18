@@ -6,6 +6,7 @@ namespace SoureCode\Component\Authorable\Metadata;
 
 use SoureCode\Component\Authorable\Attribute\ChangedBy;
 use SoureCode\Component\Authorable\Attribute\CreatedBy;
+use SoureCode\Component\Authorable\Attribute\DeletedBy;
 use SoureCode\Component\Authorable\Attribute\UpdatedBy;
 use SoureCode\Component\DoctrineExtensions\Metadata\BehaviorMetadataFactoryInterface;
 
@@ -28,6 +29,7 @@ final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterfac
         $created = [];
         $updated = [];
         $changed = [];
+        $deleted = [];
         $reflection = new \ReflectionClass($class);
 
         do {
@@ -46,11 +48,16 @@ final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterfac
                     $instance = $attribute->newInstance();
                     $changed[] = new ChangedByBinding($property, $instance->fields, $instance->matchValue, $instance->value);
                 }
+
+                foreach ($property->getAttributes(DeletedBy::class) as $attribute) {
+                    $attribute->newInstance();
+                    $deleted[] = new DeletedByBinding($property);
+                }
             }
 
             $reflection = $reflection->getParentClass();
         } while ($reflection !== false);
 
-        return $this->cache[$class] = new AuthorableMetadata($created, $updated, $changed);
+        return $this->cache[$class] = new AuthorableMetadata($created, $updated, $changed, $deleted);
     }
 }

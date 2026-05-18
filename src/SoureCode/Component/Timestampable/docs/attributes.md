@@ -1,6 +1,6 @@
 # Attributes
 
-All three attributes target a property (`\Attribute::TARGET_PROPERTY`).
+All four attributes target a property (`\Attribute::TARGET_PROPERTY`).
 
 ## `#[CreatedAt]`
 
@@ -66,3 +66,18 @@ Set when one of the watched fields appears in the changeset.
 
 - `field: []` → `InvalidArgumentException`
 - `matchValue: true` with multiple fields → `InvalidArgumentException`
+
+## `#[DeletedAt]`
+
+```php
+#[DeletedAt(type: Types::DATETIMETZ_IMMUTABLE)]
+private ?\DateTimeImmutable $deletedAt = null;
+```
+
+**Pure marker.** The flush listener never fills this field — the caller assigns it (typically through a soft-remove helper such as the `Removable` component). The mapping listener auto-registers a nullable column of the given Doctrine type when no `#[ORM\Column]` is declared.
+
+**Arguments**
+
+| name | type | default | meaning |
+|------|------|---------|---------|
+| `type` | string | `DATETIMETZ_IMMUTABLE` | column type, used by the mapping listener |

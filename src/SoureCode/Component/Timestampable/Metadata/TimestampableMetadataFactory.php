@@ -7,6 +7,7 @@ namespace SoureCode\Component\Timestampable\Metadata;
 use SoureCode\Component\DoctrineExtensions\Metadata\BehaviorMetadataFactoryInterface;
 use SoureCode\Component\Timestampable\Attribute\ChangedAt;
 use SoureCode\Component\Timestampable\Attribute\CreatedAt;
+use SoureCode\Component\Timestampable\Attribute\DeletedAt;
 use SoureCode\Component\Timestampable\Attribute\UpdatedAt;
 
 final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInterface
@@ -28,6 +29,7 @@ final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInter
         $created = [];
         $updated = [];
         $changed = [];
+        $deleted = [];
         $reflection = new \ReflectionClass($class);
 
         do {
@@ -46,11 +48,16 @@ final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInter
                     $instance = $attribute->newInstance();
                     $changed[] = new ChangedAtBinding($property, $instance->fields, $instance->matchValue, $instance->value, $instance->type);
                 }
+
+                foreach ($property->getAttributes(DeletedAt::class) as $attribute) {
+                    $instance = $attribute->newInstance();
+                    $deleted[] = new DeletedAtBinding($property, $instance->type);
+                }
             }
 
             $reflection = $reflection->getParentClass();
         } while ($reflection !== false);
 
-        return $this->cache[$class] = new TimestampableMetadata($created, $updated, $changed);
+        return $this->cache[$class] = new TimestampableMetadata($created, $updated, $changed, $deleted);
     }
 }
