@@ -2,44 +2,62 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Component\Removable\Repository;
+namespace SoureCode\Component\Removable;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\Timestampable\Metadata\TimestampableMetadataFactory;
 
-trait RemovableRepositoryTrait
+final class Remover implements RemoverInterface
 {
-    private ClockInterface $clock;
-    private TimestampableMetadataFactory $timestampableMetadata;
-    private AuthorableMetadataFactory $authorableMetadata;
-    private ?AuthorProviderInterface $authorProvider = null;
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly ClockInterface $clock,
+        private readonly TimestampableMetadataFactory $timestampableMetadata,
+        private readonly AuthorableMetadataFactory $authorableMetadata,
+        private readonly ?AuthorProviderInterface $authorProvider = null,
+    ) {
+    }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     public function remove(object $entity, bool $soft = true, bool $flush = true): void
     {
-        $entityManager = $this->getEntityManager();
-
         if ($soft) {
             $this->fillDeletionMarkers($entity);
         } else {
-            $entityManager->remove($entity);
+            $this->entityManager->remove($entity);
         }
 
         if ($flush) {
-            $entityManager->flush();
+            $this->entityManager->flush();
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     public function restore(object $entity, bool $flush = true): void
     {
         $this->clearDeletionMarkers($entity);
 
         if ($flush) {
-            $this->getEntityManager()->flush();
+            $this->entityManager->flush();
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function fillDeletionMarkers(object $entity): void
     {
         $deletedAtBindings = $this->timestampableMetadata
@@ -70,6 +88,11 @@ trait RemovableRepositoryTrait
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function clearDeletionMarkers(object $entity): void
     {
         $deletedAtBindings = $this->timestampableMetadata
@@ -91,5 +114,4 @@ trait RemovableRepositoryTrait
             $binding->getProperty()->setValue($entity, null);
         }
     }
-
 }

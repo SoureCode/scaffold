@@ -97,6 +97,10 @@ final class VersionableListener
     }
 
     /**
+     * @template T of object
+     *
+     * @param T $entity
+     *
      * @return iterable<object>
      */
     private function resolveInverseOwners(object $entity, EntityManagerInterface $entityManager): iterable
@@ -144,6 +148,11 @@ final class VersionableListener
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function isScheduledForDeletion(object $entity, UnitOfWork $unitOfWork): bool
     {
         foreach ($unitOfWork->getScheduledEntityDeletions() as $scheduled) {
@@ -155,6 +164,11 @@ final class VersionableListener
         return false;
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function shouldSnapshotForScalarChanges(object $entity, UnitOfWork $unitOfWork): bool
     {
         $metadata = $this->metadataFactory->getMetadataFor($entity::class);
@@ -199,6 +213,11 @@ final class VersionableListener
         return null;
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function writeSnapshot(object $entity, EntityManagerInterface $entityManager): void
     {
         $metadata = $this->metadataFactory->getMetadataFor($entity::class);
@@ -275,6 +294,10 @@ final class VersionableListener
     }
 
     /**
+     * @template T of object
+     *
+     * @param T $entity
+     *
      * @return array{0: mixed, 1: int|null}
      */
     private function captureSingleAssociation(
@@ -312,6 +335,9 @@ final class VersionableListener
     }
 
     /**
+     * @template T of object
+     *
+     * @param T $entity
      * @param class-string $targetClass
      */
     private function insertCollectionRows(

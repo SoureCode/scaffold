@@ -32,6 +32,11 @@ final class AuthorableListener extends AbstractFlushListener
         return $this->authorProvider->getCurrentAuthor();
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     protected function handlePersistInterfaceFallback(object $entity): void
     {
         if (!$entity instanceof AuthorableInterface) {
@@ -53,6 +58,11 @@ final class AuthorableListener extends AbstractFlushListener
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     protected function handleUpdateInterfaceFallback(object $entity, EntityManagerInterface $entityManager, UnitOfWork $unitOfWork): void
     {
         if (!$entity instanceof AuthorableInterface) {

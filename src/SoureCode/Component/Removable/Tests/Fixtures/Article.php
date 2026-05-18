@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 use SoureCode\Component\Authorable\Attribute\DeletedBy;
 use SoureCode\Component\Timestampable\Attribute\DeletedAt;
 
-#[ORM\Entity(repositoryClass: ArticleRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'removable_article')]
 class Article
 {

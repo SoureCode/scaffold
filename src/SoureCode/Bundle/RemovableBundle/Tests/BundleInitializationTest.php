@@ -11,6 +11,8 @@ use SoureCode\Bundle\DoctrineExtensionsBundle\DoctrineExtensionsBundle;
 use SoureCode\Bundle\DoctrineExtensionsBundle\Testing\AbstractBundleTestCase;
 use SoureCode\Bundle\RemovableBundle\RemovableBundle;
 use SoureCode\Bundle\TimestampableBundle\TimestampableBundle;
+use SoureCode\Component\Removable\Remover;
+use SoureCode\Component\Removable\RemoverInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 final class BundleInitializationTest extends AbstractBundleTestCase
@@ -35,11 +37,12 @@ final class BundleInitializationTest extends AbstractBundleTestCase
         return $kernel;
     }
 
-    public function testKernelBoots(): void
+    public function testServicesAreRegistered(): void
     {
         self::bootKernel();
         $container = self::getContainer();
 
-        self::assertNotNull($container);
+        self::assertTrue($container->has(Remover::class));
+        self::assertTrue($container->has(RemoverInterface::class));
     }
 }

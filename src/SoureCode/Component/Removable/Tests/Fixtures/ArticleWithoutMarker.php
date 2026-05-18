@@ -7,7 +7,7 @@ namespace SoureCode\Component\Removable\Tests\Fixtures;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: ArticleWithoutMarkerRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'removable_article_no_marker')]
 class ArticleWithoutMarker
 {

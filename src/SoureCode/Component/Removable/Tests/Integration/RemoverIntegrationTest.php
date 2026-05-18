@@ -14,24 +14,21 @@ use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
+use SoureCode\Component\Removable\Remover;
 use SoureCode\Component\Removable\Tests\Fixtures\Article;
-use SoureCode\Component\Removable\Tests\Fixtures\ArticleRepository;
 use SoureCode\Component\Removable\Tests\Fixtures\ArticleWithoutMarker;
-use SoureCode\Component\Removable\Tests\Fixtures\ArticleWithoutMarkerRepository;
 use SoureCode\Component\Removable\Tests\Fixtures\User;
 use SoureCode\Component\Removable\Tests\Support\FixedAuthorProvider;
 use SoureCode\Component\Timestampable\EventListener\TimestampableMappingListener;
 use SoureCode\Component\Timestampable\Metadata\TimestampableMetadataFactory;
 use Symfony\Component\Clock\MockClock;
 
-final class RemovableIntegrationTest extends TestCase
+final class RemoverIntegrationTest extends TestCase
 {
     private EntityManagerInterface $entityManager;
     private MockClock $clock;
     private FixedAuthorProvider $authorProvider;
-    private ArticleRepository $repository;
-    private TimestampableMetadataFactory $timestampableMetadata;
-    private AuthorableMetadataFactory $authorableMetadata;
+    private Remover $remover;
 
     protected function setUp(): void
     {
@@ -50,17 +47,18 @@ final class RemovableIntegrationTest extends TestCase
         $this->entityManager = new EntityManager($connection, $config);
         $this->clock = new MockClock('2026-05-17T10:00:00+00:00');
         $this->authorProvider = new FixedAuthorProvider();
-        $this->timestampableMetadata = new TimestampableMetadataFactory();
-        $this->authorableMetadata = new AuthorableMetadataFactory();
+
+        $timestampableMetadata = new TimestampableMetadataFactory();
+        $authorableMetadata = new AuthorableMetadataFactory();
 
         $eventManager = $this->entityManager->getEventManager();
         $eventManager->addEventListener(
             [Events::loadClassMetadata],
-            new TimestampableMappingListener($this->timestampableMetadata),
+            new TimestampableMappingListener($timestampableMetadata),
         );
         $eventManager->addEventListener(
             [Events::loadClassMetadata],
-            new AuthorableMappingListener($this->authorableMetadata),
+            new AuthorableMappingListener($authorableMetadata),
         );
 
         $schemaTool = new SchemaTool($this->entityManager);
@@ -70,12 +68,11 @@ final class RemovableIntegrationTest extends TestCase
             $this->entityManager->getClassMetadata(ArticleWithoutMarker::class),
         ]);
 
-        $this->repository = new ArticleRepository(
+        $this->remover = new Remover(
             $this->entityManager,
-            $this->entityManager->getClassMetadata(Article::class),
             $this->clock,
-            $this->timestampableMetadata,
-            $this->authorableMetadata,
+            $timestampableMetadata,
+            $authorableMetadata,
             $this->authorProvider,
         );
     }
@@ -92,7 +89,7 @@ final class RemovableIntegrationTest extends TestCase
         $this->entityManager->flush();
 
         $this->clock->modify('+1 hour');
-        $this->repository->remove($article);
+        $this->remover->remove($article);
 
         $expectedDeletedAt = \DateTimeImmutable::createFromInterface($this->clock->now());
         self::assertEquals($expectedDeletedAt, $article->getDeletedAt());
@@ -112,7 +109,7 @@ final class RemovableIntegrationTest extends TestCase
         $this->entityManager->persist($article);
         $this->entityManager->flush();
 
-        $this->repository->remove($article);
+        $this->remover->remove($article);
 
         self::assertNotNull($article->getDeletedAt());
         self::assertNull($article->getDeletedBy());
@@ -125,7 +122,7 @@ final class RemovableIntegrationTest extends TestCase
         $this->entityManager->flush();
         $id = $article->getId();
 
-        $this->repository->remove($article, soft: false);
+        $this->remover->remove($article, soft: false);
 
         $this->entityManager->clear();
         self::assertNull($this->entityManager->find(Article::class, $id));
@@ -137,7 +134,7 @@ final class RemovableIntegrationTest extends TestCase
         $this->entityManager->persist($article);
         $this->entityManager->flush();
 
-        $this->repository->remove($article, flush: false);
+        $this->remover->remove($article, flush: false);
         self::assertNotNull($article->getDeletedAt());
 
         $this->entityManager->clear();
@@ -157,11 +154,11 @@ final class RemovableIntegrationTest extends TestCase
         $this->entityManager->persist($article);
         $this->entityManager->flush();
 
-        $this->repository->remove($article);
+        $this->remover->remove($article);
         self::assertNotNull($article->getDeletedAt());
         self::assertNotNull($article->getDeletedBy());
 
-        $this->repository->restore($article);
+        $this->remover->restore($article);
 
         self::assertNull($article->getDeletedAt());
         self::assertNull($article->getDeletedBy());
@@ -175,14 +172,6 @@ final class RemovableIntegrationTest extends TestCase
 
     public function testRemoveThrowsWhenEntityHasNoDeletedAtMarker(): void
     {
-        $repository = new ArticleWithoutMarkerRepository(
-            $this->entityManager,
-            $this->entityManager->getClassMetadata(ArticleWithoutMarker::class),
-            $this->clock,
-            $this->timestampableMetadata,
-            $this->authorableMetadata,
-        );
-
         $entity = new ArticleWithoutMarker('hello');
         $this->entityManager->persist($entity);
         $this->entityManager->flush();
@@ -190,6 +179,6 @@ final class RemovableIntegrationTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('#[DeletedAt]');
 
-        $repository->remove($entity);
+        $this->remover->remove($entity);
     }
 }

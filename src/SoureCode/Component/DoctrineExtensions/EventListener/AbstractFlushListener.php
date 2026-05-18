@@ -98,10 +98,25 @@ abstract class AbstractFlushListener
 
     abstract protected function resolveValue(\ReflectionProperty $property): mixed;
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     abstract protected function handlePersistInterfaceFallback(object $entity): void;
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     abstract protected function handleUpdateInterfaceFallback(object $entity, EntityManagerInterface $entityManager, UnitOfWork $unitOfWork): void;
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function touchScheduled(object $entity, EntityManagerInterface $entityManager, UnitOfWork $unitOfWork): void
     {
         $metadata = $this->metadataFactory->getMetadataFor($entity::class);
@@ -136,6 +151,11 @@ abstract class AbstractFlushListener
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $changedRelated
+     */
     private function touchRelatedWatchers(
         object $changedRelated,
         EntityManagerInterface $entityManager,
@@ -170,6 +190,11 @@ abstract class AbstractFlushListener
     }
 
     /**
+     * @template TEntity of object
+     * @template TRelated of object
+     *
+     * @param TEntity $entity
+     * @param TRelated $changedRelated
      * @param list<ChangeBindingInterface> $bindings
      */
     private function touchWatcher(
@@ -223,12 +248,24 @@ abstract class AbstractFlushListener
         return $touched;
     }
 
+    /**
+     * @template TEntity of object
+     * @template TRelated of object
+     *
+     * @param TEntity $entity
+     * @param TRelated $changedRelated
+     */
     private function pathPointsTo(object $entity, string $path, object $changedRelated, ?string &$nested): bool
     {
         return $this->walkPath($entity, $path, $changedRelated, $nested, new \SplObjectStorage());
     }
 
     /**
+     * @template TCurrent of object
+     * @template TRelated of object
+     *
+     * @param TCurrent $current
+     * @param TRelated $changedRelated
      * @param \SplObjectStorage<object, true> $visited
      */
     private function walkPath(object $current, string $path, object $changedRelated, ?string &$nested, \SplObjectStorage $visited): bool
@@ -324,6 +361,11 @@ abstract class AbstractFlushListener
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function isScheduledForUpdate(object $entity, UnitOfWork $unitOfWork): bool
     {
         foreach ($unitOfWork->getScheduledEntityUpdates() as $scheduled) {
@@ -335,6 +377,11 @@ abstract class AbstractFlushListener
         return false;
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     private function isScheduledForDeletion(object $entity, UnitOfWork $unitOfWork): bool
     {
         foreach ($unitOfWork->getScheduledEntityDeletions() as $scheduled) {

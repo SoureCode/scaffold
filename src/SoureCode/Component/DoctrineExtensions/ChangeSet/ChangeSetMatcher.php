@@ -10,6 +10,11 @@ use SoureCode\Component\DoctrineExtensions\Metadata\ChangeBindingInterface;
 
 final class ChangeSetMatcher
 {
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     public function matches(ChangeBindingInterface $binding, object $entity, UnitOfWork $unitOfWork): bool
     {
         foreach ($binding->getFields() as $field) {
@@ -31,6 +36,9 @@ final class ChangeSetMatcher
     }
 
     /**
+     * @template T of object
+     *
+     * @param T $entity
      * @param \SplObjectStorage<object, true> $visited
      */
     private function matchesPath(
@@ -96,6 +104,9 @@ final class ChangeSetMatcher
     }
 
     /**
+     * @template T of object
+     *
+     * @param T $entity
      * @param \SplObjectStorage<object, true> $visited
      */
     private function matchesNewlyAssignedRelated(

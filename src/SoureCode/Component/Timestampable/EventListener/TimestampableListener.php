@@ -34,6 +34,11 @@ final class TimestampableListener extends AbstractFlushListener
         return $this->timestampFactory->makeFor($property);
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     protected function handlePersistInterfaceFallback(object $entity): void
     {
         if (!$entity instanceof TimestampableInterface) {
@@ -51,6 +56,11 @@ final class TimestampableListener extends AbstractFlushListener
         }
     }
 
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     */
     protected function handleUpdateInterfaceFallback(object $entity, EntityManagerInterface $entityManager, UnitOfWork $unitOfWork): void
     {
         if (!$entity instanceof TimestampableInterface) {

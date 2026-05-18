@@ -88,7 +88,7 @@ private ?User $deletedBy = null;
 
 Soft-remove orchestration (call `AuthorProviderInterface`, fill `deletedBy`, flush) lives in the [`Removable`](../../Removable/docs/index.md) component, which reads the marker via Authorable metadata.
 
-The `AuthorableBundle` ships a [`DeletedByTrait`](../../../Bundle/AuthorableBundle/Doctrine/DeletedByTrait.php) typed against Symfony's `UserInterface` — same pattern as `AuthorableTrait`.
+The `AuthorableBundle` ships a [`DeletedByTrait`](../../../Bundle/AuthorableBundle/Doctrine/DeletedByTrait.php) typed against Symfony's `UserInterface` — same pattern as `CreatedByTrait` / `UpdatedByTrait`.
 
 ## Mapping override
 

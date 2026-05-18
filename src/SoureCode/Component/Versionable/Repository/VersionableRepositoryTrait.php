@@ -62,6 +62,10 @@ trait VersionableRepositoryTrait
      * Related entities are re-attached at their current state — historical
      * versions of related entities are not restored.
      *
+     * @template T of object
+     *
+     * @param T $entity
+     *
      * @throws \RuntimeException when the version does not exist
      */
     public function applyVersion(object $entity, int $version): void
