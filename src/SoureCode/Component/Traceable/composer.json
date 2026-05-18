@@ -1,0 +1,21 @@
+{
+    "name": "sourecode/traceable",
+    "type": "library",
+    "description": "Runtime-context trace id propagation (web, CLI, messenger, scheduler).",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "symfony/uid": "^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.1"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Component\\Traceable\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Component\\Traceable\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}

@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+namespace SoureCode\Bundle\TraceableBundle;
+
+use SoureCode\Bundle\TraceableBundle\EventListener\ConsoleTraceListener;
+use SoureCode\Bundle\TraceableBundle\EventListener\HttpTraceListener;
+use SoureCode\Bundle\TraceableBundle\Messenger\TraceContextMiddleware;
+use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+
+final class TraceableBundle extends AbstractBundle
+{
+    public function configure(DefinitionConfigurator $definition): void
+    {
+        $definition->rootNode()
+            ->children()
+                ->arrayNode('http')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')->defaultTrue()->end()
+                        ->scalarNode('request_header')->defaultValue('X-Request-Id')->end()
+                        ->scalarNode('response_header')->defaultValue('X-Request-Id')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('console')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')->defaultTrue()->end()
+                    ->end()
+                ->end()
+                ->arrayNode('messenger')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')->defaultTrue()->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * @param array{
+     *     http:      array{enabled: bool, request_header: ?string, response_header: ?string},
+     *     console:   array{enabled: bool},
+     *     messenger: array{enabled: bool},
+     * } $config
+     */
+    public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
+    {
+        $container->import(__DIR__ . '/config/services.php');
+
+        if (!$config['http']['enabled']) {
+            $builder->removeDefinition(HttpTraceListener::class);
+        } else {
+            $builder->getDefinition(HttpTraceListener::class)
+                ->replaceArgument(2, $config['http']['request_header'])
+                ->replaceArgument(3, $config['http']['response_header']);
+        }
+
+        if (!$config['console']['enabled']) {
+            $builder->removeDefinition(ConsoleTraceListener::class);
+        }
+
+        if (!$config['messenger']['enabled']) {
+            $builder->removeDefinition(TraceContextMiddleware::class);
+        }
+    }
+}

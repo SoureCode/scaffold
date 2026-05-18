@@ -7,9 +7,14 @@
         "doctrine/orm": "^3.6",
         "php": ">=8.5",
         "psr/clock": "^1.0",
+        "psr/log": "^3.0",
         "symfony/clock": "^8.0",
+        "symfony/console": "^8.0",
         "symfony/framework-bundle": "^8.0",
-        "symfony/security-core": "^8.0"
+        "symfony/http-kernel": "^8.0",
+        "symfony/messenger": "^8.0",
+        "symfony/security-core": "^8.0",
+        "symfony/uid": "^8.0"
     },
     "replace": {
         "sourecode/authorable": "self.version",
@@ -20,6 +25,8 @@
         "sourecode/removable-bundle": "self.version",
         "sourecode/timestampable": "self.version",
         "sourecode/timestampable-bundle": "self.version",
+        "sourecode/traceable": "self.version",
+        "sourecode/traceable-bundle": "self.version",
         "sourecode/versionable": "self.version",
         "sourecode/versionable-bundle": "self.version"
     },
@@ -29,11 +36,13 @@
             "SoureCode\\Bundle\\DoctrineExtensionsBundle\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/",
             "SoureCode\\Bundle\\RemovableBundle\\": "src/SoureCode/Bundle/RemovableBundle/",
             "SoureCode\\Bundle\\TimestampableBundle\\": "src/SoureCode/Bundle/TimestampableBundle/",
+            "SoureCode\\Bundle\\TraceableBundle\\": "src/SoureCode/Bundle/TraceableBundle/",
             "SoureCode\\Bundle\\VersionableBundle\\": "src/SoureCode/Bundle/VersionableBundle/",
             "SoureCode\\Component\\Authorable\\": "src/SoureCode/Component/Authorable/",
             "SoureCode\\Component\\DoctrineExtensions\\": "src/SoureCode/Component/DoctrineExtensions/",
             "SoureCode\\Component\\Removable\\": "src/SoureCode/Component/Removable/",
             "SoureCode\\Component\\Timestampable\\": "src/SoureCode/Component/Timestampable/",
+            "SoureCode\\Component\\Traceable\\": "src/SoureCode/Component/Traceable/",
             "SoureCode\\Component\\Versionable\\": "src/SoureCode/Component/Versionable/"
         },
         "exclude-from-classmap": [
@@ -41,11 +50,13 @@
             "/src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests",
             "/src/SoureCode/Bundle/RemovableBundle/Tests",
             "/src/SoureCode/Bundle/TimestampableBundle/Tests",
+            "/src/SoureCode/Bundle/TraceableBundle/Tests",
             "/src/SoureCode/Bundle/VersionableBundle/Tests",
             "/src/SoureCode/Component/Authorable/Tests",
             "/src/SoureCode/Component/DoctrineExtensions/Tests",
             "/src/SoureCode/Component/Removable/Tests",
             "/src/SoureCode/Component/Timestampable/Tests",
+            "/src/SoureCode/Component/Traceable/Tests",
             "/src/SoureCode/Component/Versionable/Tests"
         ]
     },
@@ -55,11 +66,13 @@
             "SoureCode\\Bundle\\DoctrineExtensionsBundle\\Tests\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests/",
             "SoureCode\\Bundle\\RemovableBundle\\Tests\\": "src/SoureCode/Bundle/RemovableBundle/Tests/",
             "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "src/SoureCode/Bundle/TimestampableBundle/Tests/",
+            "SoureCode\\Bundle\\TraceableBundle\\Tests\\": "src/SoureCode/Bundle/TraceableBundle/Tests/",
             "SoureCode\\Bundle\\VersionableBundle\\Tests\\": "src/SoureCode/Bundle/VersionableBundle/Tests/",
             "SoureCode\\Component\\Authorable\\Tests\\": "src/SoureCode/Component/Authorable/Tests/",
             "SoureCode\\Component\\DoctrineExtensions\\Tests\\": "src/SoureCode/Component/DoctrineExtensions/Tests/",
             "SoureCode\\Component\\Removable\\Tests\\": "src/SoureCode/Component/Removable/Tests/",
             "SoureCode\\Component\\Timestampable\\Tests\\": "src/SoureCode/Component/Timestampable/Tests/",
+            "SoureCode\\Component\\Traceable\\Tests\\": "src/SoureCode/Component/Traceable/Tests/",
             "SoureCode\\Component\\Versionable\\Tests\\": "src/SoureCode/Component/Versionable/Tests/"
         }
     },
