@@ -29,7 +29,7 @@ authorable:
 
 ### `user_class`
 
-Set this when your entities type author properties as an **interface** (e.g. the bundled `AuthorableTrait` types them as `Symfony\Component\Security\Core\User\UserInterface`). Doctrine needs a concrete class for the FK; the mapping listener uses `user_class` instead of the property's PHP type.
+Set this when your entities type author properties as an **interface** (e.g. the bundled `CreatedByTrait` / `UpdatedByTrait` / `DeletedByTrait` type them as `Symfony\Component\Security\Core\User\UserInterface`). Doctrine needs a concrete class for the FK; the mapping listener uses `user_class` instead of the property's PHP type.
 
 ```yaml
 authorable:
@@ -52,34 +52,22 @@ Leave it null when your entities type author properties directly with the concre
 
 Annotate entities with `#[CreatedBy]`, `#[UpdatedBy]`, `#[ChangedBy]` — see the [component README](../../Component/Authorable/README.md) and [docs/](../../Component/Authorable/docs).
 
-### Bundled `AuthorableTrait`
+### Bundled traits
 
-For the common Symfony Security case, drop this trait into your entity:
-
-```php
-use SoureCode\Bundle\AuthorableBundle\Doctrine\AuthorableTrait;
-
-#[ORM\Entity]
-class Article
-{
-    use AuthorableTrait;
-}
-```
-
-The trait declares `createdBy`/`updatedBy` typed as `Symfony\Component\Security\Core\User\UserInterface` and carries the `#[CreatedBy]` + `#[UpdatedBy]` attributes. Set `user_class:` in your bundle config so the mapping listener knows which concrete entity to use as the FK target.
-
-### Bundled `DeletedByTrait`
-
-For the soft-delete blame field, drop this trait alongside `AuthorableTrait` (or on its own):
+One trait per attribute, ships in `Doctrine/`. All typed against `Symfony\Component\Security\Core\User\UserInterface`. Mix freely. Set `user_class:` in the bundle config so the mapping listener knows which concrete entity to use as the FK target.
 
 ```php
+use SoureCode\Bundle\AuthorableBundle\Doctrine\CreatedByTrait;
+use SoureCode\Bundle\AuthorableBundle\Doctrine\UpdatedByTrait;
 use SoureCode\Bundle\AuthorableBundle\Doctrine\DeletedByTrait;
 
 #[ORM\Entity]
 class Article
 {
-    use DeletedByTrait;
+    use CreatedByTrait; // $createdBy + #[CreatedBy]
+    use UpdatedByTrait; // $updatedBy + #[UpdatedBy]
+    use DeletedByTrait; // $deletedBy + #[DeletedBy]
 }
 ```
 
-Declares `$deletedBy` typed as `UserInterface` with `#[DeletedBy]`. Pure marker — the field is filled by [`Removable`](../../Component/Removable/docs/index.md) on soft-remove, not by the flush listener.
+`DeletedByTrait` is a pure marker — the field is filled by [`Removable`](../../Component/Removable/docs/index.md), not by the flush listener.
