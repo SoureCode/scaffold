@@ -124,6 +124,9 @@ final class Versioner implements VersionerInterface
     }
 
     /**
+     * @internal Bypasses the entity constructor via Doctrine's newInstance(); the returned
+     *           object is a partial snapshot copy and MUST NOT be persisted via the EntityManager.
+     *
      * @template T of object
      *
      * @param class-string<T> $className
@@ -214,6 +217,8 @@ final class Versioner implements VersionerInterface
                     $binding->property->setValue($entity, $collection);
                 }
 
+                // Doctrine PersistentCollection::clear() dissociates elements; for a OneToMany
+                // without orphanRemoval the previously-attached children remain in the database.
                 $collection->clear();
 
                 foreach ($joinRows as $joinRow) {

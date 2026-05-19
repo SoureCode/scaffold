@@ -244,6 +244,9 @@ final class VersionableListener
         $idType = Type::getType($classMetadata->getFieldMapping($idField)->type);
         $entityIdValue = $idType->convertToDatabaseValue($entityId, $platform);
 
+        // MAX(version) + 1 is racy under concurrent writers; the (entity_id, version)
+        // unique index on the version table rejects duplicates. Callers that expect
+        // contention must wrap the flush in a retry loop.
         $nextVersion = ((int) $connection->fetchOne(
             \sprintf('SELECT MAX(version) FROM %s WHERE entity_id = ?', $versionTable),
             [$entityIdValue],
