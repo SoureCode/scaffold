@@ -17,8 +17,8 @@ final class HttpTraceListener
     public function __construct(
         private readonly TraceContextFactory $factory,
         private readonly TraceContextHolder $holder,
-        private readonly ?string $requestHeader = 'X-Request-Id',
-        private readonly ?string $responseHeader = 'X-Request-Id',
+        private readonly ?string $requestHeader,
+        private readonly ?string $responseHeader,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
