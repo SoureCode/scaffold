@@ -7,12 +7,9 @@ namespace SoureCode\Bundle\AuthorableBundle;
 use SoureCode\Bundle\AuthorableBundle\Security\SecurityAuthorProvider;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
-use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 final class AuthorableBundle extends AbstractBundle
@@ -23,7 +20,7 @@ final class AuthorableBundle extends AbstractBundle
             ->children()
                 ->scalarNode('author_provider')
                     ->defaultNull()
-                    ->info('Service id implementing ' . AuthorProviderInterface::class . '. Defaults to SecurityAuthorProvider when symfony/security-bundle is installed.')
+                    ->info('Service id implementing ' . AuthorProviderInterface::class . '. Defaults to SecurityAuthorProvider.')
                 ->end()
                 ->scalarNode('user_class')
                     ->defaultNull()
@@ -39,19 +36,7 @@ final class AuthorableBundle extends AbstractBundle
     {
         $container->import(__DIR__ . '/config/services.php');
 
-        $providerId = $config['author_provider'];
-
-        if ($providerId === null) {
-            if (!class_exists(Security::class)) {
-                throw new \LogicException('AuthorableBundle: "author_provider" is required when symfony/security-bundle is not installed.');
-            }
-
-            $providerId = SecurityAuthorProvider::class;
-            $builder->setDefinition(
-                $providerId,
-                (new Definition($providerId))->setArguments([new Reference(Security::class)]),
-            );
-        }
+        $providerId = $config['author_provider'] ?? SecurityAuthorProvider::class;
 
         $builder->setAlias(AuthorProviderInterface::class, $providerId);
 

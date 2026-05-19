@@ -9,7 +9,7 @@
         "symfony/framework-bundle": "^8.0",
         "doctrine/doctrine-bundle": "^3.2",
         "sourecode/doctrine-extensions-bundle": "self.version",
-        "symfony/security-core": "^8.0"
+        "symfony/security-bundle": "^8.0"
     },
     "autoload": {
         "psr-4": { "SoureCode\\Bundle\\AuthorableBundle\\": "" },
@@ -21,10 +21,6 @@
     "minimum-stability": "stable",
     "require-dev": {
         "nyholm/symfony-bundle-test": "^3.1",
-        "phpunit/phpunit": "^13.1",
-        "symfony/security-bundle": "^8.0"
-    },
-    "suggest": {
-        "symfony/security-bundle": "Enables the bundled SecurityAuthorProvider (uses Security::getUser()) as the default author source."
+        "phpunit/phpunit": "^13.1"
     }
 }
