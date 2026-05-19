@@ -46,6 +46,7 @@ return static function (ContainerConfigurator $container): void {
         ->args([
             service(TraceContextFactory::class),
             service('service_container'),
+            service(LoggerInterface::class)->nullOnInvalid(),
         ])
         ->tag('messenger.middleware')
         ->public();

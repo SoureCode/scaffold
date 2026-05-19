@@ -9,14 +9,20 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 final class Versioner implements VersionerInterface
 {
+    private readonly LoggerInterface $logger;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly VersionableMetadataFactory $metadataFactory,
+        ?LoggerInterface $logger = null,
     ) {
+        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -177,6 +183,19 @@ final class Versioner implements VersionerInterface
             if ($classMetadata->isSingleValuedAssociation($name)) {
                 $targetId = $row[$name . '_id'] ?? null;
                 $related = $targetId !== null ? $this->entityManager->find($assoc->targetEntity, $targetId) : null;
+
+                if ($targetId !== null && $related === null) {
+                    $this->logger->warning(
+                        'Versionable: historical {target} id {id} for {class}::${field} no longer resolves; field set to null.',
+                        [
+                            'class' => $className,
+                            'field' => $name,
+                            'target' => $assoc->targetEntity,
+                            'id' => $targetId,
+                        ],
+                    );
+                }
+
                 $binding->property->setValue($entity, $related);
 
                 continue;
@@ -203,9 +222,21 @@ final class Versioner implements VersionerInterface
                 foreach ($joinRows as $joinRow) {
                     $related = $this->entityManager->find($assoc->targetEntity, $joinRow['target_id']);
 
-                    if ($related !== null) {
-                        $collection->add($related);
+                    if ($related === null) {
+                        $this->logger->warning(
+                            'Versionable: historical {target} id {id} for {class}::${field} collection no longer resolves; element omitted.',
+                            [
+                                'class' => $className,
+                                'field' => $name,
+                                'target' => $assoc->targetEntity,
+                                'id' => $joinRow['target_id'],
+                            ],
+                        );
+
+                        continue;
                     }
+
+                    $collection->add($related);
                 }
             }
         }

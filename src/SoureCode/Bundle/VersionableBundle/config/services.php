@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
@@ -37,6 +38,7 @@ return static function (ContainerConfigurator $container): void {
         ->args([
             service(EntityManagerInterface::class),
             service(VersionableMetadataFactory::class),
+            service(LoggerInterface::class)->nullOnInvalid(),
         ])
         ->public();
 
