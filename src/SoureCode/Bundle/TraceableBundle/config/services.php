@@ -6,9 +6,8 @@ use Psr\Log\LoggerInterface;
 use SoureCode\Bundle\TraceableBundle\EventListener\ConsoleTraceListener;
 use SoureCode\Bundle\TraceableBundle\EventListener\HttpTraceListener;
 use SoureCode\Bundle\TraceableBundle\Messenger\TraceContextMiddleware;
-use SoureCode\Component\Traceable\TraceContext;
 use SoureCode\Component\Traceable\TraceContextFactory;
-use SoureCode\Component\Traceable\TraceContextInterface;
+use SoureCode\Component\Traceable\TraceContextHolder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
@@ -18,16 +17,12 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set(TraceContextFactory::class)->public();
 
-    $services->set(TraceContext::class)
-        ->factory([service(TraceContextFactory::class), 'create'])
-        ->public();
-
-    $services->alias(TraceContextInterface::class, TraceContext::class)->public();
+    $services->set(TraceContextHolder::class)->public();
 
     $services->set(HttpTraceListener::class)
         ->args([
             service(TraceContextFactory::class),
-            service('service_container'),
+            service(TraceContextHolder::class),
             'X-Request-Id',
             'X-Request-Id',
             service(LoggerInterface::class)->nullOnInvalid(),
@@ -38,14 +33,14 @@ return static function (ContainerConfigurator $container): void {
     $services->set(ConsoleTraceListener::class)
         ->args([
             service(TraceContextFactory::class),
-            service('service_container'),
+            service(TraceContextHolder::class),
         ])
         ->tag('kernel.event_listener', ['event' => 'console.command', 'method' => 'onCommand', 'priority' => 1024]);
 
     $services->set(TraceContextMiddleware::class)
         ->args([
             service(TraceContextFactory::class),
-            service('service_container'),
+            service(TraceContextHolder::class),
             service(LoggerInterface::class)->nullOnInvalid(),
         ])
         ->tag('messenger.middleware')

@@ -10,9 +10,8 @@ use SoureCode\Bundle\TraceableBundle\EventListener\ConsoleTraceListener;
 use SoureCode\Bundle\TraceableBundle\EventListener\HttpTraceListener;
 use SoureCode\Bundle\TraceableBundle\Messenger\TraceContextMiddleware;
 use SoureCode\Bundle\TraceableBundle\TraceableBundle;
-use SoureCode\Component\Traceable\TraceContext;
 use SoureCode\Component\Traceable\TraceContextFactory;
-use SoureCode\Component\Traceable\TraceContextInterface;
+use SoureCode\Component\Traceable\TraceContextHolder;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 final class BundleInitializationTest extends AbstractBundleTestCase
@@ -39,8 +38,7 @@ final class BundleInitializationTest extends AbstractBundleTestCase
         $container = self::getContainer();
 
         self::assertTrue($container->has(TraceContextFactory::class));
-        self::assertTrue($container->has(TraceContext::class));
-        self::assertTrue($container->has(TraceContextInterface::class));
+        self::assertTrue($container->has(TraceContextHolder::class));
         self::assertTrue($container->has(HttpTraceListener::class));
         self::assertTrue($container->has(ConsoleTraceListener::class));
         self::assertTrue($container->has(TraceContextMiddleware::class));

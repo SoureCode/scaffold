@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\TraceableBundle\EventListener;
 
-use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use SoureCode\Component\Traceable\TraceContextFactory;
-use SoureCode\Component\Traceable\TraceContextInterface;
+use SoureCode\Component\Traceable\TraceContextHolder;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\Uid\Ulid;
@@ -17,7 +16,7 @@ final class HttpTraceListener
 {
     public function __construct(
         private readonly TraceContextFactory $factory,
-        private readonly ContainerInterface $container,
+        private readonly TraceContextHolder $holder,
         private readonly ?string $requestHeader = 'X-Request-Id',
         private readonly ?string $responseHeader = 'X-Request-Id',
         private readonly LoggerInterface $logger = new NullLogger(),
@@ -47,8 +46,7 @@ final class HttpTraceListener
             }
         }
 
-        $context = $this->factory->create($incoming);
-        $this->container->set(TraceContextInterface::class, $context);
+        $this->holder->setCurrent($this->factory->create($incoming));
     }
 
     public function onResponse(ResponseEvent $event): void
@@ -61,12 +59,12 @@ final class HttpTraceListener
             return;
         }
 
-        if (!$this->container->has(TraceContextInterface::class)) {
+        $context = $this->holder->getCurrent();
+
+        if ($context === null) {
             return;
         }
 
-        /** @var TraceContextInterface $context */
-        $context = $this->container->get(TraceContextInterface::class);
         $event->getResponse()->headers->set($this->responseHeader, (string) $context->getId());
     }
 }

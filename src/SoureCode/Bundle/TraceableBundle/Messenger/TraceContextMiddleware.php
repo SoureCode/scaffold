@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\TraceableBundle\Messenger;
 
-use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use SoureCode\Component\Traceable\TraceContextFactory;
-use SoureCode\Component\Traceable\TraceContextInterface;
+use SoureCode\Component\Traceable\TraceContextHolder;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
@@ -18,7 +17,7 @@ final class TraceContextMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private readonly TraceContextFactory $factory,
-        private readonly ContainerInterface $container,
+        private readonly TraceContextHolder $holder,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -35,15 +34,17 @@ final class TraceContextMiddleware implements MiddlewareInterface
                 );
             }
 
-            $this->container->set(TraceContextInterface::class, $this->factory->create($traceStamp?->id));
+            $this->holder->setCurrent($this->factory->create($traceStamp?->id));
 
             return $stack->next()->handle($envelope, $stack);
         }
 
-        if ($envelope->last(TraceStamp::class) === null && $this->container->has(TraceContextInterface::class)) {
-            /** @var TraceContextInterface $context */
-            $context = $this->container->get(TraceContextInterface::class);
-            $envelope = $envelope->with(new TraceStamp($context->getId()));
+        if ($envelope->last(TraceStamp::class) === null) {
+            $current = $this->holder->getCurrent();
+
+            if ($current !== null) {
+                $envelope = $envelope->with(new TraceStamp($current->getId()));
+            }
         }
 
         return $stack->next()->handle($envelope, $stack);
