@@ -42,7 +42,7 @@ final class AuthorableBundle extends AbstractBundle
 
         if ($config['user_class'] !== null) {
             $builder->getDefinition(AuthorableMappingListener::class)
-                ->replaceArgument(1, $config['user_class']);
+                ->setArgument('$userClass', $config['user_class']);
         }
     }
 }

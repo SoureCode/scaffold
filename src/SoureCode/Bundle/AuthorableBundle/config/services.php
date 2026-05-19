@@ -31,6 +31,7 @@ return static function (ContainerConfigurator $container): void {
         ->tag('doctrine.event_listener', ['event' => 'onFlush']);
 
     $services->set(AuthorableMappingListener::class)
-        ->args([service(AuthorableMetadataFactory::class), null])
+        ->arg('$metadataFactory', service(AuthorableMetadataFactory::class))
+        ->arg('$userClass', null)
         ->tag('doctrine.event_listener', ['event' => 'loadClassMetadata']);
 };
