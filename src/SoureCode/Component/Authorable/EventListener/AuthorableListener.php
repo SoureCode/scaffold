@@ -45,10 +45,6 @@ final class AuthorableListener extends AbstractFlushListener
 
         $author = $this->authorProvider->getCurrentAuthor();
 
-        if ($author === null) {
-            return;
-        }
-
         if ($entity->getCreatedBy() === null) {
             $entity->setCreatedBy($author);
         }
@@ -69,13 +65,7 @@ final class AuthorableListener extends AbstractFlushListener
             return;
         }
 
-        $author = $this->authorProvider->getCurrentAuthor();
-
-        if ($author === null) {
-            return;
-        }
-
-        $entity->setUpdatedBy($author);
+        $entity->setUpdatedBy($this->authorProvider->getCurrentAuthor());
         $unitOfWork->recomputeSingleEntityChangeSet(
             $entityManager->getClassMetadata($entity::class),
             $entity,

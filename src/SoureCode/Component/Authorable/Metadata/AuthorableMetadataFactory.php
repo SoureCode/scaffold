@@ -34,8 +34,7 @@ final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterfac
 
         do {
             foreach ($reflection->getProperties() as $property) {
-                foreach ($property->getAttributes(CreatedBy::class) as $attribute) {
-                    $attribute->newInstance();
+                if ($property->getAttributes(CreatedBy::class) !== []) {
                     $created[] = new CreatedByBinding($property);
                 }
 
@@ -49,8 +48,7 @@ final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterfac
                     $changed[] = new ChangedByBinding($property, $instance->fields, $instance->matchValue, $instance->value);
                 }
 
-                foreach ($property->getAttributes(DeletedBy::class) as $attribute) {
-                    $attribute->newInstance();
+                if ($property->getAttributes(DeletedBy::class) !== []) {
                     $deleted[] = new DeletedByBinding($property);
                 }
             }
