@@ -8,7 +8,6 @@ Events: `prePersist`, `onFlush`.
 
 ```php
 $listener = new TimestampableListener(
-    clock:            $clock,                       // Psr\Clock\ClockInterface
     metadataFactory:  new TimestampableMetadataFactory(),
     timestampFactory: new TimestampFactory($clock), // SoureCode\Component\Timestampable\Clock
     changeSetMatcher: new ChangeSetMatcher(),

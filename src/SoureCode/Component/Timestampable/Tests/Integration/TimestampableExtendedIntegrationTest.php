@@ -49,7 +49,6 @@ final class TimestampableExtendedIntegrationTest extends TestCase
         $timestampFactory = new TimestampFactory($this->clock);
 
         $listener = new TimestampableListener(
-            $this->clock,
             $metadataFactory,
             $timestampFactory,
             new ChangeSetMatcher(),

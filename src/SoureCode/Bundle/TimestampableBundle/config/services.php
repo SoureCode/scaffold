@@ -21,7 +21,6 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set(TimestampableListener::class)
         ->args([
-            service(ClockInterface::class),
             service(TimestampableMetadataFactory::class),
             service(TimestampFactory::class),
             service(ChangeSetMatcher::class),

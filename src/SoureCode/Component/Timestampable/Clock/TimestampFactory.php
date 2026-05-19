@@ -28,4 +28,9 @@ final class TimestampFactory
 
         return \DateTimeImmutable::createFromInterface($now);
     }
+
+    public function now(): \DateTimeImmutable
+    {
+        return \DateTimeImmutable::createFromInterface($this->clock->now());
+    }
 }

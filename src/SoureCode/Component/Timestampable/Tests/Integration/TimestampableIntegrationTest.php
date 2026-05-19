@@ -41,7 +41,7 @@ final class TimestampableIntegrationTest extends TestCase
         $this->entityManager = new EntityManager($connection, $config);
         $this->clock = new MockClock('2026-05-17T10:00:00+00:00');
 
-        $listener = new TimestampableListener($this->clock, new TimestampableMetadataFactory(), new TimestampFactory($this->clock), new ChangeSetMatcher());
+        $listener = new TimestampableListener(new TimestampableMetadataFactory(), new TimestampFactory($this->clock), new ChangeSetMatcher());
         $this->entityManager->getEventManager()->addEventListener([Events::prePersist, Events::onFlush], $listener);
 
         $schemaTool = new SchemaTool($this->entityManager);

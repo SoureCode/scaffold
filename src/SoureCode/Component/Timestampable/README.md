@@ -29,7 +29,7 @@ Wire the listeners against your `EntityManager`:
 $metadataFactory = new TimestampableMetadataFactory();
 $timestampFactory = new TimestampFactory($clock);
 
-$listener = new TimestampableListener($clock, $metadataFactory, $timestampFactory, new ChangeSetMatcher());
+$listener = new TimestampableListener($metadataFactory, $timestampFactory, new ChangeSetMatcher());
 $mappingListener = new TimestampableMappingListener($metadataFactory);
 
 $em->getEventManager()->addEventListener([Events::prePersist, Events::onFlush], $listener);

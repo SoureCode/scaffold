@@ -6,7 +6,6 @@ namespace SoureCode\Component\Timestampable\EventListener;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\UnitOfWork;
-use Psr\Clock\ClockInterface;
 use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
 use SoureCode\Component\DoctrineExtensions\EventListener\AbstractFlushListener;
 use SoureCode\Component\Timestampable\Clock\TimestampFactory;
@@ -16,7 +15,6 @@ use SoureCode\Component\Timestampable\TimestampableInterface;
 final class TimestampableListener extends AbstractFlushListener
 {
     public function __construct(
-        private readonly ClockInterface $clock,
         TimestampableMetadataFactory $metadataFactory,
         private readonly TimestampFactory $timestampFactory,
         ChangeSetMatcher $changeSetMatcher,
@@ -45,7 +43,7 @@ final class TimestampableListener extends AbstractFlushListener
             return;
         }
 
-        $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+        $now = $this->timestampFactory->now();
 
         if ($entity->getCreatedAt() === null) {
             $entity->setCreatedAt($now);
@@ -67,7 +65,7 @@ final class TimestampableListener extends AbstractFlushListener
             return;
         }
 
-        $entity->setUpdatedAt(\DateTimeImmutable::createFromInterface($this->clock->now()));
+        $entity->setUpdatedAt($this->timestampFactory->now());
         $unitOfWork->recomputeSingleEntityChangeSet(
             $entityManager->getClassMetadata($entity::class),
             $entity,
