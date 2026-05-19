@@ -15,6 +15,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\PersistentCollection;
 use Doctrine\ORM\UnitOfWork;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Metadata\VersionedBinding;
 
@@ -28,6 +30,7 @@ final class VersionableListener
     public function __construct(
         private readonly VersionableMetadataFactory $metadataFactory,
         private readonly ClockInterface $clock,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -39,7 +42,7 @@ final class VersionableListener
         $targets = $this->pendingSnapshots ?? new \SplObjectStorage();
 
         foreach ($unitOfWork->getScheduledEntityUpdates() as $entity) {
-            if ($this->shouldSnapshotForScalarChanges($entity, $unitOfWork)) {
+            if ($this->hasVersionedChangeSetEntry($entity, $unitOfWork)) {
                 $targets[$entity] = true;
             }
         }
@@ -118,11 +121,11 @@ final class VersionableListener
                 continue;
             }
 
-            $ownerMetadata = $this->metadataFactory->getMetadataFor($owner::class);
-
-            if ($ownerMetadata->isEmpty()) {
+            if (!$this->metadataFactory->isVersionable($owner::class)) {
                 continue;
             }
+
+            $ownerMetadata = $this->metadataFactory->getMetadataFor($owner::class);
 
             $ownerClassMetadata = $entityManager->getClassMetadata($owner::class);
 
@@ -169,7 +172,7 @@ final class VersionableListener
      *
      * @param T $entity
      */
-    private function shouldSnapshotForScalarChanges(object $entity, UnitOfWork $unitOfWork): bool
+    private function hasVersionedChangeSetEntry(object $entity, UnitOfWork $unitOfWork): bool
     {
         $metadata = $this->metadataFactory->getMetadataFor($entity::class);
 
@@ -196,15 +199,13 @@ final class VersionableListener
             return null;
         }
 
-        $metadata = $this->metadataFactory->getMetadataFor($owner::class);
-
-        if ($metadata->isEmpty()) {
+        if (!$this->metadataFactory->isVersionable($owner::class)) {
             return null;
         }
 
         $fieldName = $collection->getMapping()->fieldName;
 
-        foreach ($metadata->bindings as $binding) {
+        foreach ($this->metadataFactory->getMetadataFor($owner::class)->bindings as $binding) {
             if ($binding->property->getName() === $fieldName) {
                 return $owner;
             }
@@ -226,12 +227,17 @@ final class VersionableListener
         $platform = $connection->getDatabasePlatform();
 
         $sourceTable = $classMetadata->getTableName();
-        $versionTable = $sourceTable . '_version';
+        $versionTable = VersionableMetadataFactory::versionTableName($sourceTable);
 
         $idField = $classMetadata->getSingleIdentifierFieldName();
         $entityId = $classMetadata->getReflectionProperty($idField)->getValue($entity);
 
         if ($entityId === null) {
+            $this->logger->warning(
+                'Versionable: skipped snapshot for {class} because the entity has no identifier at postFlush — this indicates the entity was scheduled for a version write but never persisted.',
+                ['class' => $entity::class],
+            );
+
             return;
         }
 
@@ -273,7 +279,7 @@ final class VersionableListener
                 [$idValue, $targetVersion] = $this->captureSingleAssociation($entity, $binding, $classMetadata, $connection, $entityManager);
                 $row[$fieldName . '_id'] = $idValue;
 
-                if ($this->isTargetVersionable($classMetadata->getAssociationMapping($fieldName)->targetEntity)) {
+                if ($this->metadataFactory->isVersionable($classMetadata->getAssociationMapping($fieldName)->targetEntity)) {
                     $row[$fieldName . '_version'] = $targetVersion;
                 }
 
@@ -327,7 +333,7 @@ final class VersionableListener
         $idDbValue = $idType->convertToDatabaseValue($targetIdValue, $platform);
 
         $targetVersion = null;
-        if ($this->isTargetVersionable($assoc->targetEntity)) {
+        if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
             $targetVersion = $this->loadCurrentTargetVersion($assoc->targetEntity, $idDbValue, $connection, $entityManager);
         }
 
@@ -361,7 +367,7 @@ final class VersionableListener
         $idType = Type::getType($targetMetadata->getFieldMapping($targetIdField)->type);
 
         $joinTable = $versionTable . '_' . $binding->property->getName();
-        $captureVersion = $this->isTargetVersionable($targetClass);
+        $captureVersion = $this->metadataFactory->isVersionable($targetClass);
 
         foreach ($value as $element) {
             if (!is_object($element)) {
@@ -398,7 +404,9 @@ final class VersionableListener
         Connection $connection,
         EntityManagerInterface $entityManager,
     ): ?int {
-        $targetVersionTable = $entityManager->getClassMetadata($targetClass)->getTableName() . '_version';
+        $targetVersionTable = VersionableMetadataFactory::versionTableName(
+            $entityManager->getClassMetadata($targetClass)->getTableName(),
+        );
 
         $value = $connection->fetchOne(
             \sprintf('SELECT MAX(version) FROM %s WHERE entity_id = ?', $targetVersionTable),
@@ -406,13 +414,5 @@ final class VersionableListener
         );
 
         return $value === null || $value === false ? null : (int) $value;
-    }
-
-    /**
-     * @param class-string $targetClass
-     */
-    private function isTargetVersionable(string $targetClass): bool
-    {
-        return !$this->metadataFactory->getMetadataFor($targetClass)->isEmpty();
     }
 }

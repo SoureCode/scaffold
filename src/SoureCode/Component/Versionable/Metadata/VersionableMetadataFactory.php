@@ -37,4 +37,17 @@ final class VersionableMetadataFactory
 
         return $this->cache[$class] = new VersionableMetadata($bindings);
     }
+
+    /**
+     * @param class-string $class
+     */
+    public function isVersionable(string $class): bool
+    {
+        return !$this->getMetadataFor($class)->isEmpty();
+    }
+
+    public static function versionTableName(string $sourceTable): string
+    {
+        return $sourceTable . '_version';
+    }
 }

@@ -23,6 +23,7 @@ return static function (ContainerConfigurator $container): void {
         ->args([
             service(VersionableMetadataFactory::class),
             service(ClockInterface::class),
+            service(LoggerInterface::class)->nullOnInvalid(),
         ])
         ->tag('doctrine.event_listener', ['event' => 'onFlush'])
         ->tag('doctrine.event_listener', ['event' => 'postFlush']);

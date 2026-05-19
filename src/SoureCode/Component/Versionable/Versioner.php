@@ -15,14 +15,11 @@ use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 final class Versioner implements VersionerInterface
 {
-    private readonly LoggerInterface $logger;
-
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly VersionableMetadataFactory $metadataFactory,
-        ?LoggerInterface $logger = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -257,6 +254,8 @@ final class Versioner implements VersionerInterface
      */
     private function getVersionTable(string $className): string
     {
-        return $this->entityManager->getClassMetadata($className)->getTableName() . '_version';
+        return VersionableMetadataFactory::versionTableName(
+            $this->entityManager->getClassMetadata($className)->getTableName(),
+        );
     }
 }

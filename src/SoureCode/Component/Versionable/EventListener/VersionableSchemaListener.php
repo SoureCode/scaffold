@@ -47,7 +47,7 @@ final class VersionableSchemaListener
         ClassMetadataFactory $doctrineFactory,
     ): void {
         $sourceTable = $sourceMetadata->getTableName();
-        $versionTableName = $sourceTable . '_version';
+        $versionTableName = VersionableMetadataFactory::versionTableName($sourceTable);
 
         if ($schema->hasTable($versionTableName)) {
             return;
@@ -100,14 +100,6 @@ final class VersionableSchemaListener
         }
     }
 
-    /**
-     * @param class-string $targetClass
-     */
-    private function isTargetVersionable(string $targetClass): bool
-    {
-        return !$this->metadataFactory->getMetadataFor($targetClass)->isEmpty();
-    }
-
     private function addScalarFieldColumn(Table $table, ClassMetadata $source, string $fieldName): void
     {
         $sourceField = $source->getFieldMapping($fieldName);
@@ -147,7 +139,7 @@ final class VersionableSchemaListener
         $table->addColumn($columnName, $targetIdType, ['notnull' => false]);
         $table->addIndex([$columnName]);
 
-        if ($this->isTargetVersionable($assoc->targetEntity)) {
+        if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
             $table->addColumn($fieldName . '_version', Types::INTEGER, ['notnull' => false]);
         }
     }
@@ -177,7 +169,7 @@ final class VersionableSchemaListener
         $joinTable->addForeignKeyConstraint($versionTableName, ['version_id'], ['id'], ['onDelete' => 'CASCADE']);
         $joinTable->addIndex(['target_id']);
 
-        if ($this->isTargetVersionable($assoc->targetEntity)) {
+        if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
             $joinTable->addColumn('target_version', Types::INTEGER, ['notnull' => false]);
         }
     }
