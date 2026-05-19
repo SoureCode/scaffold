@@ -3,55 +3,42 @@
 ## Reading the current trace id
 
 ```php
-use SoureCode\Component\Traceable\TraceStackInterface;
+use SoureCode\Component\Traceable\TraceContextHolder;
 
 final class SomeLogger
 {
     public function __construct(
-        private readonly TraceStackInterface $traceIds,
+        private readonly TraceContextHolder $traceContextHolder,
     ) {}
 
     public function log(string $message): void
     {
-        $traceId = $this->traceIds->getId();
-        // …
+        $context = $this->traceContextHolder->getCurrent();
+        $traceId = $context?->getId();
+        // ...
     }
 }
 ```
 
-The provider returns `null` when no trace is active.
+`getCurrent()` returns `null` when no trace is active.
 
-## Pushing and popping
+## Setting a trace id
 
 ```php
-use SoureCode\Component\Traceable\TraceStack;
+use SoureCode\Component\Traceable\TraceContextFactory;
+use SoureCode\Component\Traceable\TraceContextHolder;
 use Symfony\Component\Uid\Ulid;
 
-$stack = new TraceStack();
+$factory = new TraceContextFactory();
+$holder = new TraceContextHolder();
 
-$id = $stack->push(new Ulid()); // explicit id
-$id = $stack->push();           // generates a fresh Ulid
-
-// …
-
-$stack->pop(); // returns the popped id, or null when empty
+$holder->setCurrent($factory->create());                 // generates a fresh Ulid
+$holder->setCurrent($factory->create(new Ulid('...'))); // explicit id
+$holder->setCurrent(null);                                // clear
 ```
-
-Nested pushes are supported — `getId()` always returns the top of the stack.
-
-## Scoped trace
-
-```php
-$stack->withTrace(new Ulid(), function () use ($stack): void {
-    // inside the callback: getId() returns the new ulid
-});
-// outside: previous trace id (or null) is current again
-```
-
-`withTrace(null, $callback)` generates a fresh `Ulid` for the scope. The pop happens in a `finally`, so the stack is restored even when the callback throws.
 
 ## Sources
 
-The component does not bind to a runtime. Concrete sources (HTTP request listener, console event listener, messenger middleware, scheduler) are wired by the bundle.
+The component does not bind to a runtime. Concrete sources (HTTP request listener, console event listener, messenger middleware) are wired by the bundle. See [`sourecode/traceable-bundle`](../../../Bundle/TraceableBundle/README.md).
 
-Manual usage works too — application code can call `push()` / `withTrace()` directly from any handler that has a meaningful correlation id.
+Manual usage works too — application code can call `setCurrent()` directly from any handler that has a meaningful correlation id.

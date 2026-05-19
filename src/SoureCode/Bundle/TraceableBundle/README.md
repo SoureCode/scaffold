@@ -1,6 +1,6 @@
 # sourecode/traceable-bundle
 
-Symfony bundle wiring for [`sourecode/traceable`](../../Component/Traceable/README.md). Registers a fresh `TraceContext` in the container for each runtime context (HTTP request, console command, messenger message).
+Symfony bundle wiring for [`sourecode/traceable`](../../Component/Traceable/README.md). Registers a `TraceContextHolder` that the bundle's listeners and messenger middleware mutate with a fresh `TraceContext` for each runtime scope (HTTP request, console command, messenger message).
 
 ## Install
 
@@ -37,5 +37,4 @@ Symfony Scheduler dispatches scheduled tasks through the message bus. `TraceCont
 | Service id | |
 |-----------|---|
 | `TraceContextFactory` | concrete factory |
-| `TraceContext` | initial context (factory-built) |
-| `TraceContextInterface` | alias of `TraceContext`; per-scope replaced via `$container->set(...)` by the listeners/middleware |
+| `TraceContextHolder` | mutable per-scope holder; inject this to read the current `TraceContextInterface` via `getCurrent()` |
