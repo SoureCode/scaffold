@@ -105,14 +105,14 @@ PK: `(version_id, target_id)`.
 - A `ManyToMany`-typed `#[Versioned]` collection was modified (Doctrine reports it in scheduled collection updates/deletions).
 - A `OneToMany`-typed `#[Versioned]` collection was modified (detected by walking scheduled insertions/deletions of the "many" side and tracing back via `mappedBy`).
 
-## Repository
+## Reading history
 
-Mix `VersionableRepositoryTrait` into your repository — see the bundle for an `AbstractVersionableRepository` ready to extend.
+The `Versioner` service exposes the snapshot rows:
 
 ```php
-$repository->findHistory($id);
-$repository->findByVersion($id, 2);
-$repository->findLatestVersion($id);
+$versioner->findHistory($entity);
+$versioner->findByVersion($entity, 2);
+$versioner->findLatestVersion($entity);
 ```
 
 Each method returns associative arrays (one row each), not entity objects — the version table is a flat snapshot, not a Doctrine entity.
@@ -120,7 +120,7 @@ Each method returns associative arrays (one row each), not entity objects — th
 ### Reverting an entity
 
 ```php
-$repository->applyVersion($entity, 2);
+$versioner->applyVersion($entity, 2);
 $em->flush(); // writes a new version row capturing the revert
 ```
 

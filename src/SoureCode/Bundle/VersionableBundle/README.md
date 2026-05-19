@@ -21,25 +21,4 @@ Symfony Flex registers the bundle (and its prerequisites `DoctrineBundle` + `Doc
 
 Annotate properties with `#[Versioned]` — see the [component README](../../Component/Versionable/README.md).
 
-### Bundled `AbstractVersionableRepository`
-
-For repositories that should expose version queries on the host entity, extend `AbstractVersionableRepository`:
-
-```php
-use SoureCode\Bundle\VersionableBundle\Repository\AbstractVersionableRepository;
-
-/**
- * @extends AbstractVersionableRepository<Article>
- */
-final class ArticleRepository extends AbstractVersionableRepository
-{
-    public function __construct(ManagerRegistry $registry)
-    {
-        parent::__construct($registry, Article::class);
-    }
-}
-```
-
-`$em->getRepository(Article::class)->findHistory($id)` works.
-
-If your repository already extends a different base, mix in `SoureCode\Component\Versionable\Repository\VersionableRepositoryTrait` instead.
+Inject `VersionerInterface` (or `Versioner`) where you want to read history or revert an entity. See the component README for the full API.
