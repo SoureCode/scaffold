@@ -10,15 +10,12 @@ use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Versioner;
 use SoureCode\Component\Versionable\VersionerInterface;
-use Symfony\Component\Clock\Clock;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 return static function (ContainerConfigurator $container): void {
     $services = $container->services();
-
-    $services->set(ClockInterface::class, Clock::class);
 
     $services->set(VersionableMetadataFactory::class);
 
