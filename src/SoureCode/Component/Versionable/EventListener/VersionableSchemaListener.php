@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace SoureCode\Component\Versionable\EventListener;
 
 use Doctrine\DBAL\Schema\Schema;
+use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
+use Doctrine\Persistence\Mapping\ClassMetadataFactory;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Metadata\VersionedBinding;
 
@@ -42,7 +44,7 @@ final class VersionableSchemaListener
         Schema $schema,
         ClassMetadata $sourceMetadata,
         array $bindings,
-        \Doctrine\Persistence\Mapping\ClassMetadataFactory $doctrineFactory,
+        ClassMetadataFactory $doctrineFactory,
     ): void {
         $sourceTable = $sourceMetadata->getTableName();
         $versionTableName = $sourceTable . '_version';
@@ -106,7 +108,7 @@ final class VersionableSchemaListener
         return !$this->metadataFactory->getMetadataFor($targetClass)->isEmpty();
     }
 
-    private function addScalarFieldColumn(\Doctrine\DBAL\Schema\Table $table, ClassMetadata $source, string $fieldName): void
+    private function addScalarFieldColumn(Table $table, ClassMetadata $source, string $fieldName): void
     {
         $sourceField = $source->getFieldMapping($fieldName);
         $columnName = $source->getColumnName($fieldName);
@@ -130,10 +132,10 @@ final class VersionableSchemaListener
     }
 
     private function addSingleAssociationColumn(
-        \Doctrine\DBAL\Schema\Table $table,
+        Table $table,
         ClassMetadata $source,
         string $fieldName,
-        \Doctrine\Persistence\Mapping\ClassMetadataFactory $factory,
+        ClassMetadataFactory $factory,
     ): void {
         $assoc = $source->getAssociationMapping($fieldName);
         $targetMetadata = $factory->getMetadataFor($assoc->targetEntity);
@@ -155,7 +157,7 @@ final class VersionableSchemaListener
         string $versionTableName,
         ClassMetadata $source,
         string $fieldName,
-        \Doctrine\Persistence\Mapping\ClassMetadataFactory $factory,
+        ClassMetadataFactory $factory,
     ): void {
         $assoc = $source->getAssociationMapping($fieldName);
         $targetMetadata = $factory->getMetadataFor($assoc->targetEntity);

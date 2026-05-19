@@ -16,14 +16,11 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 
 final class TraceContextMiddleware implements MiddlewareInterface
 {
-    private readonly LoggerInterface $logger;
-
     public function __construct(
         private readonly TraceContextFactory $factory,
         private readonly ContainerInterface $container,
-        ?LoggerInterface $logger = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->logger = $logger ?? new NullLogger();
     }
 
     public function handle(Envelope $envelope, StackInterface $stack): Envelope

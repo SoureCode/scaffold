@@ -41,6 +41,10 @@ vendor/bin/phpunit
 | `sourecode/timestampable-bundle` | `src/SoureCode/Bundle/TimestampableBundle/` |
 | `sourecode/authorable` | `src/SoureCode/Component/Authorable/` |
 | `sourecode/authorable-bundle` | `src/SoureCode/Bundle/AuthorableBundle/` |
+| `sourecode/removable` | `src/SoureCode/Component/Removable/` |
+| `sourecode/removable-bundle` | `src/SoureCode/Bundle/RemovableBundle/` |
+| `sourecode/traceable` | `src/SoureCode/Component/Traceable/` |
+| `sourecode/traceable-bundle` | `src/SoureCode/Bundle/TraceableBundle/` |
 | `sourecode/versionable` | `src/SoureCode/Component/Versionable/` |
 | `sourecode/versionable-bundle` | `src/SoureCode/Bundle/VersionableBundle/` |
 

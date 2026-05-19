@@ -23,8 +23,7 @@ return static function (ContainerConfigurator $container): void {
             service(TimestampableMetadataFactory::class),
             service(AuthorableMetadataFactory::class),
             service(AuthorProviderInterface::class)->nullOnInvalid(),
-        ])
-        ->public();
+        ]);
 
     $services->alias(RemoverInterface::class, Remover::class)->public();
 };

@@ -9,8 +9,7 @@
         "sourecode/doctrine-extensions": "self.version"
     },
     "require-dev": {
-        "phpunit/phpunit": "^13.1",
-        "symfony/cache": "^8.0"
+        "phpunit/phpunit": "^13.1"
     },
     "autoload": {
         "psr-4": { "SoureCode\\Component\\Authorable\\": "" },

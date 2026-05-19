@@ -109,7 +109,7 @@ final class Versioner implements VersionerInterface
         $entityId = $classMetadata->getReflectionProperty($idField)->getValue($entity);
 
         if ($entityId === null) {
-            throw new \RuntimeException('Cannot apply version to an entity without an identifier.');
+            throw new \RuntimeException(\sprintf('Cannot apply version to %s without an identifier.', $className));
         }
 
         $row = $this->newQuery($className)

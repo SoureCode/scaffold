@@ -39,8 +39,7 @@ return static function (ContainerConfigurator $container): void {
             service(EntityManagerInterface::class),
             service(VersionableMetadataFactory::class),
             service(LoggerInterface::class)->nullOnInvalid(),
-        ])
-        ->public();
+        ]);
 
     $services->alias(VersionerInterface::class, Versioner::class)->public();
 };

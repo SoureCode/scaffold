@@ -15,16 +15,13 @@ use Symfony\Component\Uid\Ulid;
 
 final class HttpTraceListener
 {
-    private readonly LoggerInterface $logger;
-
     public function __construct(
         private readonly TraceContextFactory $factory,
         private readonly ContainerInterface $container,
         private readonly ?string $requestHeader = 'X-Request-Id',
         private readonly ?string $responseHeader = 'X-Request-Id',
-        ?LoggerInterface $logger = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->logger = $logger ?? new NullLogger();
     }
 
     public function onRequest(RequestEvent $event): void
