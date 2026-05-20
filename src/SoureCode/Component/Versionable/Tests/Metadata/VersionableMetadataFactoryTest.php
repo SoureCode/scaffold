@@ -36,17 +36,11 @@ final class VersionableMetadataFactoryTest extends TestCase
         $factory = new VersionableMetadataFactory();
         $metadata = $factory->getMetadataFor(VersionableMetadataFactoryTestChild::class);
 
-        self::assertFalse($metadata->isEmpty(), 'Child class inherits Versioned bindings from parent');
-
-        $titleBindings = array_filter(
-            $metadata->bindings,
-            static fn($binding): bool => $binding->property->getName() === 'title',
-        );
-        self::assertNotEmpty($titleBindings);
-        $first = array_values($titleBindings)[0];
+        self::assertCount(1, $metadata->bindings, 'Inherited #[Versioned] property must yield exactly one binding');
+        self::assertSame('title', $metadata->bindings[0]->property->getName());
         self::assertSame(
             VersionableMetadataFactoryTestEntity::class,
-            $first->property->getDeclaringClass()->getName(),
+            $metadata->bindings[0]->property->getDeclaringClass()->getName(),
         );
     }
 

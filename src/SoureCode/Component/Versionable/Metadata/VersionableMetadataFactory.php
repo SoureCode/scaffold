@@ -25,15 +25,11 @@ final class VersionableMetadataFactory
         $bindings = [];
         $reflection = new \ReflectionClass($class);
 
-        do {
-            foreach ($reflection->getProperties() as $property) {
-                if ($property->getAttributes(Versioned::class) !== []) {
-                    $bindings[] = new VersionedBinding($property);
-                }
+        foreach ($reflection->getProperties() as $property) {
+            if ($property->getAttributes(Versioned::class) !== []) {
+                $bindings[] = new VersionedBinding($property);
             }
-
-            $reflection = $reflection->getParentClass();
-        } while ($reflection !== false);
+        }
 
         return $this->cache[$class] = new VersionableMetadata($bindings);
     }
