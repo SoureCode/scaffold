@@ -182,7 +182,14 @@ final class Versioner implements VersionerInterface
 
             if ($classMetadata->isSingleValuedAssociation($name)) {
                 $targetId = $row[$name . '_id'] ?? null;
-                $related = $targetId !== null ? $this->entityManager->find($assoc->targetEntity, $targetId) : null;
+                // Route through findOneBy so the existence check actually runs a SELECT;
+                // EntityManager::find returns an uninitialized lazy ghost for missing ids
+                // under PHP 8.4+ native lazy objects, which would silence the warning below.
+                $related = $targetId !== null
+                    ? $this->entityManager->getRepository($assoc->targetEntity)->findOneBy([
+                        $this->entityManager->getClassMetadata($assoc->targetEntity)->getSingleIdentifierFieldName() => $targetId,
+                    ])
+                    : null;
 
                 if ($targetId !== null && $related === null) {
                     $this->logger->warning(
@@ -221,8 +228,11 @@ final class Versioner implements VersionerInterface
                 // without orphanRemoval the previously-attached children remain in the database.
                 $collection->clear();
 
+                $targetIdField = $this->entityManager->getClassMetadata($assoc->targetEntity)->getSingleIdentifierFieldName();
+                $targetRepository = $this->entityManager->getRepository($assoc->targetEntity);
+
                 foreach ($joinRows as $joinRow) {
-                    $related = $this->entityManager->find($assoc->targetEntity, $joinRow['target_id']);
+                    $related = $targetRepository->findOneBy([$targetIdField => $joinRow['target_id']]);
 
                     if ($related === null) {
                         $this->logger->warning(
