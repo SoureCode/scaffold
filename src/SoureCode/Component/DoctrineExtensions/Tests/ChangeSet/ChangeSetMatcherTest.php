@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
 use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\FakeChangeBinding;
 use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\Sample;
+use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\SampleStatus;
 
 final class ChangeSetMatcherTest extends TestCase
 {
@@ -121,6 +122,87 @@ final class ChangeSetMatcherTest extends TestCase
         $matcher = new ChangeSetMatcher();
 
         self::assertNull($matcher->findProperty(Sample::class, 'nonexistent'));
+    }
+
+    public function testValueMatchesReturnsTrueWhenBindingHasNoValueMatcher(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $binding = new FakeChangeBinding(new \ReflectionProperty(Sample::class, 'label'), ['label']);
+
+        self::assertTrue($matcher->valueMatches($binding, 'anything'));
+        self::assertTrue($matcher->valueMatches($binding, null));
+    }
+
+    public function testValueMatchesEnforcesEqualityWhenBindingHasValueMatcher(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $binding = new FakeChangeBinding(
+            new \ReflectionProperty(Sample::class, 'label'),
+            ['label'],
+            matchValue: true,
+            value: 'target',
+        );
+
+        self::assertTrue($matcher->valueMatches($binding, 'target'));
+        self::assertFalse($matcher->valueMatches($binding, 'other'));
+    }
+
+    public function testEnumActualMatchesScalarExpected(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $binding = new FakeChangeBinding(
+            new \ReflectionProperty(Sample::class, 'label'),
+            ['label'],
+            matchValue: true,
+            value: 'draft',
+        );
+
+        self::assertTrue($matcher->valueMatches($binding, SampleStatus::Draft));
+        self::assertFalse($matcher->valueMatches($binding, SampleStatus::Published));
+    }
+
+    public function testScalarActualMatchesEnumExpected(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $binding = new FakeChangeBinding(
+            new \ReflectionProperty(Sample::class, 'label'),
+            ['label'],
+            matchValue: true,
+            value: SampleStatus::Draft,
+        );
+
+        self::assertTrue($matcher->valueMatches($binding, 'draft'));
+        self::assertFalse($matcher->valueMatches($binding, 'published'));
+    }
+
+    public function testEnumActualMatchesEnumExpectedByIdentity(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $binding = new FakeChangeBinding(
+            new \ReflectionProperty(Sample::class, 'label'),
+            ['label'],
+            matchValue: true,
+            value: SampleStatus::Draft,
+        );
+
+        self::assertTrue($matcher->valueMatches($binding, SampleStatus::Draft));
+        self::assertFalse($matcher->valueMatches($binding, SampleStatus::Published));
+    }
+
+    public function testFiresOnNewlyAssignedRelatedFromChangeSet(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $entity = new Sample('child');
+        $oldParent = new Sample('p-old');
+        $newParent = new Sample('p-new');
+        $entity->parent = $newParent;
+
+        $binding = $this->makeBinding($entity, ['parent.label']);
+        $unitOfWork = $this->mockUnitOfWork([
+            spl_object_id($entity) => ['parent' => [$oldParent, $newParent]],
+        ]);
+
+        self::assertTrue($matcher->matches($binding, $entity, $unitOfWork));
     }
 
     /**
