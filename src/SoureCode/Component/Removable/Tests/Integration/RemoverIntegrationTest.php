@@ -184,6 +184,26 @@ final class RemoverIntegrationTest extends TestCase
         $this->remover->remove($entity);
     }
 
+    public function testRemoverConstructedWithoutAuthorProviderStillSoftDeletes(): void
+    {
+        $remover = new Remover(
+            $this->entityManager,
+            $this->clock,
+            new TimestampableMetadataFactory(),
+            new AuthorableMetadataFactory(),
+            authorProvider: null,
+        );
+
+        $article = new Article('hello');
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+
+        $remover->remove($article);
+
+        self::assertNotNull($article->getDeletedAt());
+        self::assertNull($article->getDeletedBy(), 'Without an author provider, the deletedBy column stays null');
+    }
+
     public function testRestoreThrowsOnEntityWithoutDeletedAtMarker(): void
     {
         $entity = new ArticleWithoutMarker('hello');
