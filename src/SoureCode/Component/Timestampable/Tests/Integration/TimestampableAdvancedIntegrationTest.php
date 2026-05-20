@@ -158,4 +158,29 @@ final class TimestampableAdvancedIntegrationTest extends TestCase
             $item->getTagsChangedAt(),
         );
     }
+
+    public function testCollectionRemoveFiresWatcher(): void
+    {
+        $tag = new Tag('news');
+        $item = new TaggedItem('article');
+        $this->entityManager->persist($tag);
+        $this->entityManager->persist($item);
+        $item->addTag($tag);
+        $this->entityManager->flush();
+
+        $stampedOnAdd = $item->getTagsChangedAt();
+        self::assertNotNull($stampedOnAdd);
+
+        $this->clock->modify('+1 hour');
+        $item->removeTag($tag);
+        $this->entityManager->flush();
+
+        $stampedOnRemove = $item->getTagsChangedAt();
+        self::assertNotNull($stampedOnRemove);
+        self::assertNotEquals($stampedOnAdd, $stampedOnRemove, 'Removing an element must re-stamp the watcher');
+        self::assertEquals(
+            \DateTimeImmutable::createFromInterface($this->clock->now()),
+            $stampedOnRemove,
+        );
+    }
 }
