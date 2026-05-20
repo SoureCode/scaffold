@@ -22,7 +22,17 @@ return static function (ContainerBuilder $container): void {
         'orm' => [
             'enable_native_lazy_objects' => true,
             'entity_managers' => [
-                'default' => ['auto_mapping' => true],
+                'default' => [
+                    'auto_mapping' => true,
+                    'mappings' => [
+                        'TimestampableBundleTests' => [
+                            'type' => 'attribute',
+                            'dir' => __DIR__ . '/../Fixtures',
+                            'prefix' => 'SoureCode\\Bundle\\TimestampableBundle\\Tests\\Fixtures',
+                            'is_bundle' => false,
+                        ],
+                    ],
+                ],
             ],
         ],
     ]);
