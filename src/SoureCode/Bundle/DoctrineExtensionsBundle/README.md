@@ -1,15 +1,17 @@
 # sourecode/doctrine-extensions-bundle
 
-Symfony bundle registering the shared services from [`sourecode/doctrine-extensions`](../../Component/DoctrineExtensions/README.md). Required by `sourecode/timestampable-bundle` and `sourecode/authorable-bundle`.
+Registers the shared services from [`sourecode/doctrine-extensions`](../../Component/DoctrineExtensions/README.md). Pulled in transitively by every other `*Bundle` in this monorepo.
+
+## When to use
+
+Required by `TimestampableBundle`, `AuthorableBundle`, `VersionableBundle`. Nothing to configure manually unless you depend on `ChangeSetMatcher` directly in your own services.
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest.
+Part of the `scaffold` monorepo. Symfony Flex registers the bundle automatically.
 
-Symfony Flex registers the bundle automatically. No configuration block. No application-facing services to wire — downstream bundles consume `ChangeSetMatcher` directly.
-
-## Services registered
+## Public surface
 
 | Service id | Class |
-|-----------|-------|
+|------------|-------|
 | `SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher` | `ChangeSetMatcher` |

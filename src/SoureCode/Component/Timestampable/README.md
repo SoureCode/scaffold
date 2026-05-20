@@ -1,43 +1,60 @@
 # sourecode/timestampable
 
-Automatic Doctrine timestamps via PHP attributes — created, updated, changed (with field/value matching, dotted paths, collection traversal, cycle protection).
+Automatic Doctrine timestamps via PHP attributes. Mark a property with `#[CreatedAt]` / `#[UpdatedAt]` / `#[ChangedAt]` and the value is maintained automatically. `#[DeletedAt]` is the soft-delete marker companion — filled by [`Removable`](../Removable/README.md), never by this package.
+
+## When to use
+
+Any entity that needs lifecycle timestamps without hand-written setters.
+
+## When not to use
+
+You want full history per field. Pair with [`Versionable`](../Versionable/README.md).
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest. See the root [README](../../../../README.md) for the workflow.
+Part of the `scaffold` monorepo. The [`timestampable-bundle`](../../Bundle/TimestampableBundle/README.md) wires everything; without it, see [`docs/listeners.md`](docs/listeners.md).
 
-## Quick start
+## Minimal example
 
 ```php
-use SoureCode\Component\Timestampable\Attribute\CreatedAt;
-use SoureCode\Component\Timestampable\Attribute\UpdatedAt;
-
 #[ORM\Entity]
 class Article
 {
     #[CreatedAt]
-    private ?\DateTimeInterface $createdAt = null;
+    private ?\DateTimeImmutable $createdAt = null;
 
     #[UpdatedAt]
-    private ?\DateTimeInterface $updatedAt = null;
+    private ?\DateTimeImmutable $updatedAt = null;
 }
 ```
 
-Wire the listeners against your `EntityManager`:
+`createdAt` fills once. `updatedAt` follows every change.
 
-```php
-$metadataFactory = new TimestampableMetadataFactory();
-$timestampFactory = new TimestampFactory($clock);
+## Reference
 
-$listener = new TimestampableListener($metadataFactory, $timestampFactory, new ChangeSetMatcher());
-$mappingListener = new TimestampableMappingListener($metadataFactory);
+- [Attributes](docs/attributes.md) — full per-attribute reference.
+- [Listeners](docs/listeners.md) — manual wiring (skip if using the bundle).
+- [Usage patterns](docs/usage.md) — interface fallback, change-tracking forms, column type choices.
 
-$em->getEventManager()->addEventListener([Events::prePersist, Events::onFlush], $listener);
-$em->getEventManager()->addEventListener([Events::loadClassMetadata], $mappingListener);
-```
+## Behavior
 
-## Docs
+| Attribute | Filled |
+|-----------|--------|
+| `#[CreatedAt]` | On insert. Never overwritten. |
+| `#[UpdatedAt]` | On every change. `null` until the first change (override with `nullable: false`). |
+| `#[ChangedAt]` | On every change that touches a watched field. |
+| `#[DeletedAt]` | Never by this package — filled by [`Removable`](../Removable/README.md) on soft delete. |
 
-- [Attributes](docs/attributes.md)
-- [Listeners and wiring](docs/listeners.md)
-- [Usage patterns](docs/usage.md)
+## Composition
+
+- [`Authorable`](../Authorable/README.md) — same lifecycle on the "who" side.
+- [`Removable`](../Removable/README.md) — soft-delete orchestration that fills `#[DeletedAt]`.
+- [`Versionable`](../Versionable/README.md) — snapshot timestamps by marking them `#[Versioned]`.
+
+## Limits
+
+- `#[ChangedAt]` with `field: []` or `matchValue: true` combined with multiple fields → `InvalidArgumentException`.
+
+## Stability
+
+Attribute names, arguments, defaults, and observable behavior are stable.

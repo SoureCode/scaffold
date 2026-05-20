@@ -1,30 +1,20 @@
 # sourecode/timestampable-bundle
 
-Symfony bundle wiring for [`sourecode/timestampable`](../../Component/Timestampable/README.md).
+Symfony wiring for [`sourecode/timestampable`](../../Component/Timestampable/README.md). Installing the bundle is enough — entities annotated with `#[CreatedAt]` / `#[UpdatedAt]` / `#[ChangedAt]` / `#[DeletedAt]` start being maintained on flush.
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest.
+Part of the `scaffold` monorepo. Symfony Flex registers the bundle automatically. No configuration block.
 
-Symfony Flex registers the bundle (and its prerequisites `DoctrineBundle` + `DoctrineExtensionsBundle`) automatically. No configuration block.
+## Public surface
 
-## Services registered
+| Service id | Role |
+|------------|------|
+| `Psr\Clock\ClockInterface` (alias of `Symfony\Component\Clock\Clock`) | The clock the listeners use. Inject elsewhere if you need wall time in your own services. |
 
-| Service id | Tagged event |
-|-----------|--------------|
-| `TimestampableMetadataFactory` | — |
-| `TimestampFactory` | — |
-| `ClockInterface` (`Symfony\Component\Clock\Clock`) | — |
-| `TimestampableListener` | `doctrine.event_listener` (`prePersist`, `onFlush`) |
-| `TimestampableMappingListener` | `doctrine.event_listener` (`loadClassMetadata`) |
+## Traits
 
-## Usage
-
-Annotate entities with `#[CreatedAt]`, `#[UpdatedAt]`, `#[ChangedAt]`, `#[DeletedAt]` — see the [component README](../../Component/Timestampable/README.md) and [docs/](../../Component/Timestampable/docs).
-
-### Bundled traits
-
-One trait per attribute, ships in `Doctrine/`. Mix freely.
+One per attribute, lives under `Doctrine/`:
 
 ```php
 use SoureCode\Bundle\TimestampableBundle\Doctrine\CreatedAtTrait;
@@ -34,8 +24,14 @@ use SoureCode\Bundle\TimestampableBundle\Doctrine\DeletedAtTrait;
 #[ORM\Entity]
 class Article
 {
-    use CreatedAtTrait; // $createdAt + #[CreatedAt] + non-null column
-    use UpdatedAtTrait; // $updatedAt + #[UpdatedAt] + nullable column
-    use DeletedAtTrait; // $deletedAt + #[DeletedAt] + nullable column
+    use CreatedAtTrait; // $createdAt + #[CreatedAt], non-nullable
+    use UpdatedAtTrait; // $updatedAt + #[UpdatedAt], nullable
+    use DeletedAtTrait; // $deletedAt + #[DeletedAt], nullable
 }
 ```
+
+`DeletedAtTrait` is a marker — filled by [`Removable`](../../Component/Removable/README.md), not by the listener.
+
+## Behavior
+
+See the [component README](../../Component/Timestampable/README.md).

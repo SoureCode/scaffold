@@ -1,49 +1,6 @@
 # Usage patterns
 
-## Wiring
-
-```php
-use Doctrine\ORM\Events;
-use Doctrine\ORM\Tools\ToolEvents;
-use SoureCode\Component\Versionable\EventListener\VersionableListener;
-use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
-use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
-
-$metadataFactory = new VersionableMetadataFactory();
-
-$em->getEventManager()->addEventListener(
-    [Events::onFlush, Events::postFlush],
-    new VersionableListener($metadataFactory, $clock),
-);
-
-$em->getEventManager()->addEventListener(
-    [ToolEvents::postGenerateSchema],
-    new VersionableSchemaListener($metadataFactory),
-);
-```
-
-## Marking fields
-
-```php
-#[ORM\Entity]
-class Article
-{
-    #[ORM\Id, ORM\Column, ORM\GeneratedValue]
-    private int $id;
-
-    #[Versioned]
-    #[ORM\Column]
-    private string $title;
-
-    #[Versioned]
-    #[ORM\Column(nullable: true)]
-    private ?string $body = null;
-}
-```
-
-Insert does not snapshot. The first time `title` or `body` changes and the unit-of-work is flushed, a row appears in `article_version` with `version = 1`.
-
-## Service
+## Reading history
 
 Inject `VersionerInterface` (alias of `Versioner`):
 
@@ -52,45 +9,37 @@ use SoureCode\Component\Versionable\VersionerInterface;
 
 final class ArticleHistoryController
 {
-    public function __construct(
-        private readonly VersionerInterface $versioner,
-    ) {}
+    public function __construct(private readonly VersionerInterface $versioner) {}
 }
 ```
 
-The bundle wires the service from `EntityManagerInterface` + `VersionableMetadataFactory`.
-
 ```php
-$versioner->findHistory(Article::class, $id);          // list of rows, oldest first
-$versioner->findByVersion(Article::class, $id, 2);     // single row or null
-$versioner->findLatestVersion(Article::class, $id);    // single row or null
+$versioner->findHistory(Article::class, $id);          // list of snapshots, oldest first
+$versioner->findByVersion(Article::class, $id, 2);     // one snapshot or null
+$versioner->findLatestVersion(Article::class, $id);    // one snapshot or null
 ```
 
-Rows come back as associative arrays — the version table is a flat snapshot, not a Doctrine entity.
+Each row is the hydrated entity at that point in time, scoped to the versioned fields. Identifiers and unversioned fields are not part of the snapshot.
 
 ## Reverting an entity
 
 ```php
-$versioner->applyVersion($entity, 2);
-$em->flush(); // writes a new version row capturing the revert
+$versioner->applyVersion($article, 2);
+$em->flush(); // writes a new snapshot capturing the revert
 ```
 
-Mutates the live entity in place (class is inferred from the entity):
-
-- Scalar fields are restored via the matching Doctrine type.
-- Single-card associations are re-attached at their **current** state by looking up the stored FK (`$em->find(...)`).
+- Versioned scalar fields are restored to the values stored in the snapshot.
+- Single-card associations are re-attached at their *current* state by looking up the stored FK.
 - Collection associations are cleared and refilled from the snapshot's join rows.
-- Historical state of related entities is **not** restored — the stored `target_version` is informational only; the live current target is what gets re-attached.
+- Historical state of related entities is **not** restored — `target_version` is informational.
 
-Throws `RuntimeException` when the version does not exist or the entity has no identifier.
+`RuntimeException` if the version does not exist or the entity has no identifier.
 
-## Composition with other behaviors
+## Composition
 
-`Versionable` only tracks fields. Cross-cutting concerns like "who changed this" and "when was it deleted" belong to other behaviors — mark the relevant field `#[Versioned]` and the snapshot picks it up automatically.
+`Versionable` only tracks fields. Cross-cutting state (who, when) lives in the dedicated behaviors — mark the relevant field `#[Versioned]` and the snapshot picks it up.
 
-### Blame: who made the change
-
-Use [`Authorable`](../../Authorable/docs/index.md) for the `updatedBy` field, mark it tracked:
+### Author per snapshot
 
 ```php
 use SoureCode\Component\Authorable\Attribute\UpdatedBy;
@@ -101,11 +50,9 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 private ?User $updatedBy = null;
 ```
 
-Each snapshot now records the author that produced it — no Versionable-side API, no extra column, no provider configuration.
+Every snapshot records who produced it.
 
 ### Soft-delete history
-
-Mark the [Timestampable](../../Timestampable/docs/index.md) `#[DeletedAt]` and [Authorable](../../Authorable/docs/index.md) `#[DeletedBy]` markers tracked:
 
 ```php
 use SoureCode\Component\Authorable\Attribute\DeletedBy;
@@ -121,8 +68,8 @@ private ?\DateTimeImmutable $deletedAt = null;
 private ?User $deletedBy = null;
 ```
 
-The soft-remove operation lives in the [`Removable`](../../Removable/docs/index.md) repository trait — it fills both markers in one call. Versionable then snapshots the transition like any other field: the `null → timestamp` change produces a snapshot row, and a subsequent `restore()` (`timestamp → null`) produces a symmetric one. Undelete history comes for free.
+The soft-delete transition (`null → timestamp`) and `restore()` (`timestamp → null`) each appear as snapshots. Undelete history comes for free.
 
 ### General rule
 
-A snapshot is a row of the fields you marked. Any behavior that exposes its state as a property can be tracked by adding `#[Versioned]`. No coupling between behaviors is required.
+Any property tracked by another behavior can be made historical by adding `#[Versioned]`. No coupling required.

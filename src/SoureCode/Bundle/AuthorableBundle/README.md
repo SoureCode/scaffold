@@ -1,60 +1,47 @@
 # sourecode/authorable-bundle
 
-Symfony bundle wiring for [`sourecode/authorable`](../../Component/Authorable/README.md).
+Symfony wiring for [`sourecode/authorable`](../../Component/Authorable/README.md). Installing the bundle is enough — entities annotated with `#[CreatedBy]` / `#[UpdatedBy]` / `#[ChangedBy]` / `#[DeletedBy]` start being maintained on flush, sourced from a default `SecurityAuthorProvider`.
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest.
-
-Optional: `symfony/security-bundle` for the bundled default `SecurityAuthorProvider`.
-
-Symfony Flex registers the bundle (and its prerequisites `DoctrineBundle` + `DoctrineExtensionsBundle`) automatically.
+Part of the `scaffold` monorepo. Symfony Flex registers the bundle automatically.
 
 ## Configuration
 
 ```yaml
 authorable:
-    author_provider: ~   # optional; defaults to SecurityAuthorProvider when symfony/security-bundle is installed
-    user_class:       ~  # optional; forces a concrete entity class as the ManyToOne target for every binding
+    author_provider: ~   # service id; defaults to SecurityAuthorProvider
+    user_class: ~        # concrete user entity class; used when entities type author properties as an interface
 ```
 
-### `author_provider`
+| key | default | meaning |
+|-----|---------|---------|
+| `author_provider` | `SecurityAuthorProvider` | Service implementing `AuthorProviderInterface`. The default wraps `Symfony\Bundle\SecurityBundle\Security::getUser()`. |
+| `user_class` | `null` | Set when entities type author properties as an **interface** (e.g. `UserInterface`). The mapping listener uses this concrete class as the `ManyToOne` target instead of the property type. |
 
-Service id implementing `SoureCode\Component\Authorable\Author\AuthorProviderInterface`. Left null, defaults to `SecurityAuthorProvider` (wraps `Security::getUser()`). If `symfony/security-bundle` is not installed and `author_provider` is left null, the bundle throws on boot.
+### Override the provider
 
 ```yaml
 authorable:
     author_provider: App\Authorable\CurrentUserProvider
 ```
 
-### `user_class`
-
-Set this when your entities type author properties as an **interface** (e.g. the bundled `CreatedByTrait` / `UpdatedByTrait` / `DeletedByTrait` type them as `Symfony\Component\Security\Core\User\UserInterface`). Doctrine needs a concrete class for the FK; the mapping listener uses `user_class` instead of the property's PHP type.
+### Use an interface in your entities
 
 ```yaml
 authorable:
     user_class: App\Entity\User
 ```
 
-Leave it null when your entities type author properties directly with the concrete class — the property type is then used as-is.
+## Public surface
 
-## Services registered
+| Service id | Role |
+|------------|------|
+| `SoureCode\Component\Authorable\Author\AuthorProviderInterface` | Alias to your `author_provider`. Inject to read the current author yourself. |
 
-| Service id | Tagged event |
-|-----------|--------------|
-| `AuthorableMetadataFactory` | — |
-| `AuthorableListener` | `doctrine.event_listener` (`prePersist`, `onFlush`) |
-| `AuthorableMappingListener` | `doctrine.event_listener` (`loadClassMetadata`) |
-| `AuthorProviderInterface` (alias) | — points to your `author_provider` service |
-| `SecurityAuthorProvider` *(when default is used)* | — |
+## Traits
 
-## Usage
-
-Annotate entities with `#[CreatedBy]`, `#[UpdatedBy]`, `#[ChangedBy]` — see the [component README](../../Component/Authorable/README.md) and [docs/](../../Component/Authorable/docs).
-
-### Bundled traits
-
-One trait per attribute, ships in `Doctrine/`. All typed against `Symfony\Component\Security\Core\User\UserInterface`. Mix freely. Set `user_class:` in the bundle config so the mapping listener knows which concrete entity to use as the FK target.
+One per attribute, lives under `Doctrine/`, typed against `Symfony\Component\Security\Core\User\UserInterface`. Set `user_class` so the mapping listener knows which concrete entity to wire as the `ManyToOne` target.
 
 ```php
 use SoureCode\Bundle\AuthorableBundle\Doctrine\CreatedByTrait;
@@ -70,4 +57,8 @@ class Article
 }
 ```
 
-`DeletedByTrait` is a pure marker — the field is filled by [`Removable`](../../Component/Removable/docs/index.md), not by the flush listener.
+`DeletedByTrait` is a marker — filled by [`Removable`](../../Component/Removable/README.md), not by the listener.
+
+## Behavior
+
+See the [component README](../../Component/Authorable/README.md).

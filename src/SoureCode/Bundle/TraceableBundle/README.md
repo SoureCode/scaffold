@@ -1,10 +1,10 @@
 # sourecode/traceable-bundle
 
-Symfony bundle wiring for [`sourecode/traceable`](../../Component/Traceable/README.md). Registers a `TraceContextHolder` that the bundle's listeners and messenger middleware mutate with a fresh `TraceContext` for each runtime scope (HTTP request, console command, messenger message).
+Symfony wiring for [`sourecode/traceable`](../../Component/Traceable/README.md). Pushes a fresh `TraceContext` into the holder for each HTTP request, console command, and messenger envelope.
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest. Symfony Flex registers the bundle automatically.
+Part of the `scaffold` monorepo. Symfony Flex registers the bundle automatically.
 
 ## Configuration
 
@@ -12,11 +12,11 @@ Part of the `scaffold` monorepo — always installed with the rest. Symfony Flex
 traceable:
     http:
         enabled: true
-        request_header:  'X-Request-Id'  # null disables incoming parsing (always generate)
-        response_header: 'X-Request-Id'  # null disables echo on response
+        request_header:  'X-Request-Id'   # null disables incoming parsing (always generate)
+        response_header: 'X-Request-Id'   # null disables echo on response
     console:
         enabled: true
-        env_var: 'TRACE_ID'              # null disables incoming env parsing (always generate)
+        env_var: 'TRACE_ID'               # null disables incoming env parsing
     messenger:
         enabled: true
 ```
@@ -25,17 +25,21 @@ traceable:
 
 | Source | When | Trace id |
 |--------|------|----------|
-| HTTP | `kernel.request` (priority 1024) | Parsed from `request_header` if a valid Ulid, else generated. Echoed on `response_header` at `kernel.response`. Sub-requests ignored. Invalid incoming values are logged as a warning. |
-| Console | `console.command` (priority 1024) | Parsed from the `env_var` (default `TRACE_ID`) if a valid Ulid, else generated. Invalid values are logged as a warning. |
-| Messenger | message handle (envelope has `ReceivedStamp`) | Read from `TraceStamp` on the envelope; falls back to generated. On dispatch, the current trace id is attached as `TraceStamp` so async/scheduled work inherits it. |
+| HTTP | Main request | Parsed from `request_header` if a valid Ulid, else generated. Echoed on `response_header` at response time. Sub-requests inherit, do not generate. |
+| Console | Command start | Parsed from `env_var` if a valid Ulid, else generated. |
+| Messenger | Envelope handled | Read from `TraceStamp` on the envelope; otherwise generated. Outgoing dispatches are stamped with the current id so async/scheduled work inherits it. |
 
-## Scheduler
+Invalid incoming values (HTTP, console) are logged as a warning before falling back to a generated id.
 
-Symfony Scheduler dispatches scheduled tasks through the message bus. `TraceContextMiddleware` covers them transitively — each handle gets a trace id (from the stamp if a trace was active at dispatch, otherwise a fresh Ulid).
+Symfony Scheduler dispatches scheduled tasks through the message bus; messenger coverage applies transitively.
 
-## Public services
+## Public surface
 
-| Service id | |
-|-----------|---|
-| `TraceContextFactory` | concrete factory |
-| `TraceContextHolder` | mutable per-scope holder; inject this to read the current `TraceContextInterface` via `getCurrent()` |
+| Service id | Role |
+|------------|------|
+| `SoureCode\Component\Traceable\TraceContextFactory` | Build a `TraceContext` from an optional incoming `Ulid`. |
+| `SoureCode\Component\Traceable\TraceContextHolder` | Read the current `TraceContextInterface` via `getCurrent()`. |
+
+## Behavior and limits
+
+See the [component README](../../Component/Traceable/README.md).

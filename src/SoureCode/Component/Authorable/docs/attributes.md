@@ -9,7 +9,7 @@ All four target a property (`\Attribute::TARGET_PROPERTY`).
 private ?User $createdBy = null;
 ```
 
-Set on `prePersist` if the property is `null` **and** a current author is available. Never overwritten.
+Filled once on insert if a current author is available. Never overwritten.
 
 No arguments.
 
@@ -20,13 +20,11 @@ No arguments.
 private ?User $updatedBy = null;
 ```
 
-Refreshed on every flush when a current author is available. Defaults to `nullable: true` (stays `null` until the first real update). Pass `nullable: false` to fill on initial persist as well.
+Filled on every change.
 
-**Arguments**
-
-| name | type | default | meaning |
-|------|------|---------|---------|
-| `nullable` | bool | `true` | When `true`, skip on `prePersist`; column becomes nullable in auto-mapping. |
+| arg | type | default | meaning |
+|-----|------|---------|---------|
+| `nullable` | `bool` | `true` | `true`: `null` until the first change. `false`: filled on insert too. |
 
 ## `#[ChangedBy]` (repeatable)
 
@@ -35,31 +33,29 @@ Refreshed on every flush when a current author is available. Defaults to `nullab
 private ?User $publishedBy = null;
 ```
 
-Set when one of the watched fields appears in the entity's changeset.
+Filled when one of the watched fields appears in the changeset.
 
-**Arguments**
-
-| name | type | default | meaning |
-|------|------|---------|---------|
-| `field` | `string \| list<string>` | (required) | Flat property, dotted path, or list of those |
-| `matchValue` | bool | `false` | Enable value matcher; required for `value: null` |
-| `value` | mixed | `null` | Only fires when the new value equals this. Backed enums normalize against their scalar form. |
+| arg | type | default | meaning |
+|-----|------|---------|---------|
+| `field` | `string \| list<string>` | (required) | Field name, dotted path, or list. |
+| `matchValue` | `bool` | `false` | Enable value matcher; required to use `value: null`. |
+| `value` | `mixed` | `null` | Fires only when the new value equals this. Backed enums normalize against their scalar form. |
 
 ### Field forms
 
 | form | meaning |
 |------|---------|
-| `'title'` | flat property on the entity |
+| `'title'` | flat property |
 | `'address.city'` | embeddable nested field |
-| `'topic.title'` | relation traversal |
+| `'topic.title'` | relation traversal (single-card) |
 | `'owner.department.code'` | multi-level relation traversal |
 | `'channels.title'` | inverse-side collection traversal |
 | `'tags'` | collection itself — fires on add/remove |
 
-### Validation
+### Argument validation
 
-- `field: []` → `InvalidArgumentException`
-- `matchValue: true` with multiple fields → `InvalidArgumentException`
+- `field: []` → `InvalidArgumentException`.
+- `matchValue: true` combined with `field: list<string>` → `InvalidArgumentException`.
 
 ## `#[DeletedBy]`
 
@@ -68,6 +64,6 @@ Set when one of the watched fields appears in the entity's changeset.
 private ?User $deletedBy = null;
 ```
 
-**Pure marker.** The flush listener never fills this field — the caller assigns it (typically through a soft-remove helper such as the `Removable` component). The mapping listener auto-registers a nullable `ManyToOne` to the property's PHP type when no `#[ORM\ManyToOne]` is declared.
+Pure marker. The flush listener never writes to this field — [`Removable`](../../Removable/README.md) does. The mapping listener registers a nullable `ManyToOne` to the property's PHP type.
 
 No arguments.

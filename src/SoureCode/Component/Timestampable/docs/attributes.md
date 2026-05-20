@@ -1,37 +1,33 @@
 # Attributes
 
-All four attributes target a property (`\Attribute::TARGET_PROPERTY`).
+All four target a property (`\Attribute::TARGET_PROPERTY`).
 
 ## `#[CreatedAt]`
 
 ```php
 #[CreatedAt(type: Types::DATETIMETZ_IMMUTABLE)]
-private ?\DateTimeInterface $createdAt = null;
+private ?\DateTimeImmutable $createdAt = null;
 ```
 
-Set once on `prePersist` if the property is `null`. Never overwritten.
+Set on `prePersist` if the property is `null`. Never overwritten.
 
-**Arguments**
-
-| name | type | default | meaning |
-|------|------|---------|---------|
-| `type` | string | `DATETIMETZ_IMMUTABLE` | Doctrine column type, used by the mapping listener |
+| arg | type | default | meaning |
+|-----|------|---------|---------|
+| `type` | `string` | `DATETIMETZ_IMMUTABLE` | Doctrine column type used by the mapping listener when no `#[ORM\Column]` is present. |
 
 ## `#[UpdatedAt]`
 
 ```php
 #[UpdatedAt(type: Types::DATETIMETZ_IMMUTABLE, nullable: true)]
-private ?\DateTimeInterface $updatedAt = null;
+private ?\DateTimeImmutable $updatedAt = null;
 ```
 
-Refreshed on every flush of the entity. By default the property stays `null` until the first real update — pass `nullable: false` to set it on initial persist as well.
+Refreshed on every flush that touches the entity.
 
-**Arguments**
-
-| name | type | default | meaning |
-|------|------|---------|---------|
-| `type` | string | `DATETIMETZ_IMMUTABLE` | column type |
-| `nullable` | bool | `true` | When `true` (default), stays `null` until first real update; column nullable. Pass `false` to fill on persist. |
+| arg | type | default | meaning |
+|-----|------|---------|---------|
+| `type` | `string` | `DATETIMETZ_IMMUTABLE` | column type |
+| `nullable` | `bool` | `true` | `true`: stays `null` until first real update (nullable column). `false`: filled on `prePersist` too (non-nullable column). |
 
 ## `#[ChangedAt]` (repeatable)
 
@@ -42,14 +38,12 @@ private ?\DateTimeImmutable $publishedAt = null;
 
 Set when one of the watched fields appears in the changeset.
 
-**Arguments**
-
-| name | type | default | meaning |
-|------|------|---------|---------|
-| `field` | `string \| list<string>` | (required) | Field name, dotted path, or list of those |
-| `matchValue` | bool | `false` | Enable value matcher; required to use `value: null` |
-| `value` | mixed | `null` | Only fires when the new value equals this. Backed enums normalize against their scalar form. |
-| `type` | string | `DATETIMETZ_IMMUTABLE` | column type |
+| arg | type | default | meaning |
+|-----|------|---------|---------|
+| `field` | `string \| list<string>` | (required) | Field name, dotted path, or list of those. |
+| `matchValue` | `bool` | `false` | Enable value matcher; required to use `value: null`. |
+| `value` | `mixed` | `null` | Only fires when the new value equals this. Backed enums normalize against their scalar form. |
+| `type` | `string` | `DATETIMETZ_IMMUTABLE` | column type |
 
 ### Field forms
 
@@ -57,15 +51,15 @@ Set when one of the watched fields appears in the changeset.
 |------|---------|
 | `'title'` | flat property on the entity |
 | `'address.city'` | embeddable nested field |
-| `'topic.title'` | relation traversal |
+| `'topic.title'` | relation traversal (single-card) |
 | `'owner.department.code'` | multi-level relation traversal |
-| `'channels.title'` | inverse-side collection traversal — fires when any element's `title` changes |
+| `'channels.title'` | inverse-side collection traversal |
 | `'tags'` | collection itself — fires on add/remove |
 
-### Validation rules
+### Argument validation
 
-- `field: []` → `InvalidArgumentException`
-- `matchValue: true` with multiple fields → `InvalidArgumentException`
+- `field: []` → `InvalidArgumentException`.
+- `matchValue: true` combined with `field: list<string>` → `InvalidArgumentException`.
 
 ## `#[DeletedAt]`
 
@@ -74,10 +68,8 @@ Set when one of the watched fields appears in the changeset.
 private ?\DateTimeImmutable $deletedAt = null;
 ```
 
-**Pure marker.** The flush listener never fills this field — the caller assigns it (typically through a soft-remove helper such as the `Removable` component). The mapping listener auto-registers a nullable column of the given Doctrine type when no `#[ORM\Column]` is declared.
+Pure marker. The flush listener never writes to this field — the caller does ([`Removable`](../../Removable/README.md) is the orchestrator). The mapping listener registers the column with `nullable: true`.
 
-**Arguments**
-
-| name | type | default | meaning |
-|------|------|---------|---------|
-| `type` | string | `DATETIMETZ_IMMUTABLE` | column type, used by the mapping listener |
+| arg | type | default | meaning |
+|-----|------|---------|---------|
+| `type` | `string` | `DATETIMETZ_IMMUTABLE` | column type |

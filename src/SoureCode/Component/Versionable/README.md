@@ -1,14 +1,20 @@
 # sourecode/versionable
 
-Snapshot-history for Doctrine entities. Mark properties with `#[Versioned]`; whenever any of them changes, a row is written to a parallel `<entity>_version` table.
+Snapshot-history for Doctrine entities. Mark properties with `#[Versioned]`; every change to one of them appends a row to a parallel `<entity>_version` table.
 
-Built on top of [`sourecode/doctrine-extensions`](../DoctrineExtensions/README.md).
+## When to use
+
+You need a per-row audit log of selected fields: "what did this entity look like at version N?" / "revert this article to last week's title."
+
+## When not to use
+
+You need a full transactional audit log of every actor on every field, event-sourcing semantics, or a fully searchable history store. Versionable stores flat snapshots, not events. Look at a dedicated audit / event-sourcing library for those needs.
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest.
+Part of the `scaffold` monorepo. The [`versionable-bundle`](../../Bundle/VersionableBundle/README.md) wires everything; without it, see [`docs/listeners.md`](docs/listeners.md).
 
-## Quick start
+## Minimal example
 
 ```php
 use SoureCode\Component\Versionable\Attribute\Versioned;
@@ -29,109 +35,62 @@ class Article
 }
 ```
 
-Wire the listeners against your `EntityManager`:
+Every change to `title` or `body` appends a row to `article_version`. Insert is not a snapshot — the entity row itself is version 0.
 
-```php
-$metadataFactory = new VersionableMetadataFactory();
+## Reference
 
-$em->getEventManager()->addEventListener(
-    [Events::onFlush, Events::postFlush],
-    new VersionableListener($metadataFactory, $clock),
-);
-$em->getEventManager()->addEventListener(
-    [ToolEvents::postGenerateSchema],
-    new VersionableSchemaListener($metadataFactory),
-);
-```
-
-Now every time you change `title` or `body` and flush, a row is appended to `article_version`.
+- [Attributes](docs/attributes.md) — `#[Versioned]`.
+- [Listeners](docs/listeners.md) — manual wiring (skip if using the bundle).
+- [Usage patterns](docs/usage.md) — reading history, reverting, composition.
 
 ## Behavior
 
-- **Insert:** no snapshot is written.
-- **Update with at least one `#[Versioned]` field changed:** one snapshot row.
-- **Update touching only non-versioned fields:** no snapshot.
-- **Version counter** increments per entity (`1`, `2`, `3`, …).
-- **Source entity deletion:** snapshots cascade-delete via FK.
-- **Snapshot timing:** writes happen in `postFlush` (after Doctrine assigns ids to newly-inserted collection elements).
+| Operation | Snapshot |
+|-----------|----------|
+| Insert | No. |
+| Update touching a `#[Versioned]` field | Yes — one row. |
+| Update touching only non-versioned fields | No. |
+| Source entity deleted | All snapshots cascade-delete. |
+| Versioned collection mutated (add/remove) | Yes. |
 
-## Supported property kinds
+Version numbers start at `1` and increment per entity. `(entity_id, version)` is uniquely indexed.
 
-| Kind | Schema | Snapshot |
-|------|--------|----------|
-| Scalar / enum field | mirrored column on the version row | column value |
-| `ManyToOne` (owning) | `<field>_id` column | foreign-key value |
-| `OneToOne` (either side) | `<field>_id` column | foreign-key value |
-| `OneToMany` (inverse collection) | separate `<source>_version_<field>` join table | one row per current element |
-| `ManyToMany` | separate `<source>_version_<field>` join table | one row per current element |
+## Snapshot row
 
-### Tracking the target's version
+| column | role |
+|--------|------|
+| `id` | autoincrement PK |
+| `entity_id` | FK to source row, `ON DELETE CASCADE` |
+| `version` | per-entity counter |
+| `created_at` | snapshot timestamp |
+| `<scalar>` | one column per versioned scalar / enum field |
+| `<field>_id` | one column per versioned single-card relation |
+| `<field>_version` | only when the target is itself `Versionable` — its current version |
 
-If the target of an association is **also `Versionable`**, the snapshot row stores its current version number:
-
-- Single-cardinality association → extra `<field>_version` column on the version row.
-- Collection association → extra `target_version` column on the join table row.
-
-"Current version" means the highest `version` ever written for that target (or `null` if the target has never been versioned yet).
-
-## `<entity>_version` table layout
-
-| column | type | notes |
-|--------|------|-------|
-| `id` | integer | PK, autoincrement |
-| `entity_id` | mirrors source id type | FK to source.id, ON DELETE CASCADE |
-| `version` | integer | per-entity counter |
-| `created_at` | datetimetz_immutable | snapshot timestamp |
-| ... `#[Versioned]` scalar columns ... | mirror source column types | one per versioned field |
-| ... `<field>_id` columns ... | matches related entity id type | one per single-card relation |
-| ... `<field>_version` columns ... | integer, nullable | one per single-card relation pointing at a `Versionable` target |
-
-`(entity_id, version)` is uniquely indexed.
-
-## Collection join tables (`<entity>_version_<field>`)
-
-| column | type | notes |
-|--------|------|-------|
-| `version_id` | integer | FK to `<entity>_version.id`, ON DELETE CASCADE |
-| `target_id` | matches related entity id type | id of the related element |
-| `target_version` | integer, nullable | only when the related class is itself `Versionable` |
-
-PK: `(version_id, target_id)`.
-
-## What triggers a snapshot
-
-- A scalar `#[Versioned]` field changed on `update`.
-- A single-card association on a `#[Versioned]` property changed (FK swap).
-- A `ManyToMany`-typed `#[Versioned]` collection was modified (Doctrine reports it in scheduled collection updates/deletions).
-- A `OneToMany`-typed `#[Versioned]` collection was modified (detected by walking scheduled insertions/deletions of the "many" side and tracing back via `mappedBy`).
+Versioned collections live in a `<entity>_version_<field>` join table.
 
 ## Reading history
 
-The `Versioner` service exposes the snapshot rows:
-
 ```php
-$versioner->findHistory($entity);
-$versioner->findByVersion($entity, 2);
-$versioner->findLatestVersion($entity);
+$versioner->findHistory(Article::class, $id);          // ordered list of rows
+$versioner->findByVersion(Article::class, $id, 2);     // one row or null
+$versioner->findLatestVersion(Article::class, $id);    // one row or null
+$versioner->applyVersion($article, 2);                  // mutate in place
 ```
 
-Each method returns associative arrays (one row each), not entity objects — the version table is a flat snapshot, not a Doctrine entity.
+`applyVersion()` overwrites versioned fields in place. Related entities are re-attached at their *current* state — historical state of the targets is not restored. Persisting the entity afterwards produces a new snapshot capturing the revert.
 
-### Reverting an entity
+## Composition
 
-```php
-$versioner->applyVersion($entity, 2);
-$em->flush(); // writes a new version row capturing the revert
-```
+- [`Authorable`](../Authorable/README.md) — mark `#[UpdatedBy]` as `#[Versioned]` to record the author per snapshot.
+- [`Timestampable`](../Timestampable/README.md) / [`Removable`](../Removable/README.md) — mark `#[DeletedAt]` `#[Versioned]` to capture the soft-delete transition.
 
-Mutates the live entity in place with values from the requested version. Scalar fields are restored via the matching Doctrine type. Single-card associations are re-attached at their *current* state by looking up the stored FK (`$em->find(...)`). Collection associations are cleared and refilled from the snapshot's join rows. Historical state of related entities is **not** restored — if the related target carried a `target_version` at snapshot time, that's only informational; the live current target is what gets re-attached.
+## Limits
 
-Throws `RuntimeException` when the version row does not exist.
+- Concurrent writers competing for the same `(entity_id, version)` are rejected by the unique index. No automatic retry — wrap your flush in a retry loop if the workload needs it.
+- `target_version` is informational. Reverting does not restore historical state of related entities.
+- `applyVersion()` requires the version to exist; otherwise `RuntimeException`.
 
-## `target_version` contract
+## Stability
 
-When a related target is itself `Versionable`, the snapshot row records its highest-known version number at snapshot time. The value is `null` when the target has never produced a version row yet (it was inserted but never updated). Version numbers start at `1`; `null` is the canonical "no version yet" marker — no `0` sentinel is used.
-
-## Concurrency
-
-Version numbering uses `SELECT MAX(version) + 1` per entity. The unique index on `(entity_id, version)` will reject conflicting concurrent writes; no automatic retry is built in. For high-contention writes, wrap the flush in your own retry loop.
+`#[Versioned]`, the `VersionerInterface` shape, and the snapshot table layout are stable. Internal classes (`VersionableListener`, `VersionableSchemaListener`) are wired through the bundle — depend on the interface, not the listeners.

@@ -2,7 +2,7 @@
 
 ## Author provider
 
-Implement `AuthorProviderInterface` once at the integration layer.
+Implement `AuthorProviderInterface` once.
 
 ```php
 final class CurrentUserAuthorProvider implements AuthorProviderInterface
@@ -16,30 +16,16 @@ final class CurrentUserAuthorProvider implements AuthorProviderInterface
 }
 ```
 
-When no author is available (e.g. CLI, background worker, anonymous request), return `null` — the listener becomes a no-op for that flush.
+The [bundle](../../../Bundle/AuthorableBundle/README.md) ships a default that does exactly this when `symfony/security-bundle` is available.
 
-## Bare attributes
-
-```php
-#[ORM\Entity]
-class Article
-{
-    #[CreatedBy]
-    private ?User $createdBy = null;
-
-    #[UpdatedBy]
-    private ?User $updatedBy = null;
-}
-```
-
-With the mapping listener wired, no `#[ORM\ManyToOne]` is required — it's auto-registered from the property's PHP type.
+Return `null` whenever no author makes sense (anonymous, CLI, worker) — the property is left untouched.
 
 ## Interface fallback
 
-If an entity has **no** Authorable attributes but implements `AuthorableInterface`, the listener calls `setCreatedBy()` / `setUpdatedBy()` directly.
+When an entity declares no Authorable attributes but implements `AuthorableInterface`, the listener calls `setCreatedBy()` / `setUpdatedBy()` directly. Useful for legacy entities you can't decorate.
 
 ```php
-final class LegacyEntity implements AuthorableInterface
+final class LegacyArticle implements AuthorableInterface
 {
     private ?object $createdBy = null;
     private ?object $updatedBy = null;
@@ -47,14 +33,9 @@ final class LegacyEntity implements AuthorableInterface
 }
 ```
 
-## Change tracking
+Attributes and interface fallback don't mix: any Authorable attribute disables the interface path.
 
-### Fire when a relation pointer is cleared
-
-```php
-#[ChangedBy(field: 'parent', matchValue: true, value: null)]
-private ?User $orphanedBy = null;
-```
+## `#[ChangedBy]` recipes
 
 ### Fire when status becomes a specific enum case
 
@@ -63,14 +44,21 @@ private ?User $orphanedBy = null;
 private ?User $publishedBy = null;
 ```
 
-### Fire on any change to one of several fields
+### Fire when a relation pointer is cleared
+
+```php
+#[ChangedBy(field: 'parent', matchValue: true, value: null)]
+private ?User $orphanedBy = null;
+```
+
+### Fire on any change across several fields
 
 ```php
 #[ChangedBy(field: ['title', 'body'])]
 private ?User $contentEditedBy = null;
 ```
 
-### Collection itself (add/remove)
+### Collection itself
 
 ```php
 #[ChangedBy(field: 'tags')]
@@ -84,15 +72,11 @@ private ?User $lastTaggedBy = null;
 private ?User $deletedBy = null;
 ```
 
-`#[DeletedBy]` is a pure marker. The flush listener never touches it — the caller assigns the value. Mapping listener registers a nullable `ManyToOne` to the property's PHP type.
+The flush listener never touches it. Use [`Removable`](../../Removable/README.md) for the soft-delete + restore orchestration.
 
-Soft-remove orchestration (call `AuthorProviderInterface`, fill `deletedBy`, flush) lives in the [`Removable`](../../Removable/docs/index.md) component, which reads the marker via Authorable metadata.
+The [`AuthorableBundle`](../../../Bundle/AuthorableBundle/README.md) ships a `DeletedByTrait` already wired to `#[DeletedBy]`.
 
-The `AuthorableBundle` ships a [`DeletedByTrait`](../../../Bundle/AuthorableBundle/Doctrine/DeletedByTrait.php) typed against Symfony's `UserInterface` — same pattern as `CreatedByTrait` / `UpdatedByTrait`.
-
-## Mapping override
-
-Add `#[ORM\ManyToOne]` manually only when you need to override defaults (custom join column name, fetch mode, target entity disambiguation, etc.):
+## Overriding the auto-mapping
 
 ```php
 #[CreatedBy]

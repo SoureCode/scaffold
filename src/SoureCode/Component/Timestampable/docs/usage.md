@@ -1,22 +1,8 @@
 # Usage patterns
 
-Two valid opt-in styles at the component layer: attributes or interface fallback. Per-attribute convenience traits (`CreatedAtTrait`, `UpdatedAtTrait`, `DeletedAtTrait`) live in the [bundle](../../../Bundle/TimestampableBundle/README.md).
+Recipes for the cases that aren't a single line.
 
-## 1. Interface fallback (no attributes)
-
-Implement `TimestampableInterface` with your own setters. The listener falls back to interface calls only when **no** attributes are present on the entity.
-
-```php
-final class LegacyArticle implements TimestampableInterface
-{
-    private ?\DateTimeInterface $createdAt = null;
-    private ?\DateTimeInterface $updatedAt = null;
-
-    // getters + setters
-}
-```
-
-## 2. Bare attributes (custom property names)
+## Custom property names
 
 ```php
 final class Note
@@ -29,56 +15,79 @@ final class Note
 }
 ```
 
-## Column type choices
+## Interface fallback (no attributes)
 
-| column type | property type | listener writes |
-|-------------|---------------|-----------------|
-| `datetimetz_immutable` (default) | `\DateTimeImmutable` / `\DateTimeInterface` | `\DateTimeImmutable` |
-| `datetime_immutable`, `date_immutable`, `time_immutable` | same | `\DateTimeImmutable` (DB truncates) |
-| `datetime`, `datetimetz`, `date`, `time` (mutable) | `\DateTime` | `\DateTime` |
-| `integer` | `int` | unix timestamp |
+When an entity declares no Timestampable attributes but implements `TimestampableInterface`, the listener calls `setCreatedAt()` / `setUpdatedAt()` directly. Useful for legacy entities you can't decorate.
 
-Listener picks the runtime type from the **property's PHP type**, not from `type:` argument.
+```php
+final class LegacyArticle implements TimestampableInterface
+{
+    private ?\DateTimeImmutable $createdAt = null;
+    private ?\DateTimeImmutable $updatedAt = null;
+    // getters + setters
+}
+```
 
-## Change-tracking examples
+Attributes and interface fallback do not mix: presence of any Timestampable attribute disables the interface path.
+
+## Column type vs property type
+
+The listener writes the type that matches the **property** PHP type, not the `type:` argument:
+
+| property type | listener writes |
+|---------------|------------------|
+| `\DateTimeImmutable` / `\DateTimeInterface` | `\DateTimeImmutable` |
+| `\DateTime` | `\DateTime` |
+| `int` | unix timestamp |
+
+The `type:` argument only feeds the mapping listener — it picks the storage column. Use `DATETIMETZ_IMMUTABLE` (default), `DATE_IMMUTABLE`, `TIME_IMMUTABLE`, `DATETIME_IMMUTABLE`, or the mutable variants.
+
+## `#[ChangedAt]` recipes
 
 ### Fire when a status field becomes a specific enum case
+
 ```php
 #[ChangedAt(field: 'status', matchValue: true, value: Status::Published)]
 private ?\DateTimeImmutable $publishedAt = null;
 ```
 
 ### Fire when a relation pointer is cleared
+
 ```php
 #[ChangedAt(field: 'parent', matchValue: true, value: null)]
 private ?\DateTimeImmutable $orphanedAt = null;
 ```
 
-### Fire on any change to one of several fields
+### Fire on any change across several fields
+
 ```php
 #[ChangedAt(field: ['title', 'body'])]
 private ?\DateTimeImmutable $contentChangedAt = null;
 ```
 
-### Embeddable
+### Embeddable field
+
 ```php
 #[ChangedAt(field: 'address.city')]
 private ?\DateTimeImmutable $relocatedAt = null;
 ```
 
-### Relation traversal (multi-level)
+### Multi-level relation traversal
+
 ```php
 #[ChangedAt(field: 'owner.department.code')]
 private ?\DateTimeImmutable $deptCodeChangedAt = null;
 ```
 
-### Inverse-side collection
+### Inverse-side collection traversal
+
 ```php
 #[ChangedAt(field: 'channels.title')]
 private ?\DateTimeImmutable $lastChannelTitleChangedAt = null;
 ```
 
-### Collection itself (add/remove)
+### Collection itself
+
 ```php
 #[ChangedAt(field: 'tags')]
 private ?\DateTimeImmutable $tagsChangedAt = null;
@@ -91,12 +100,16 @@ private ?\DateTimeImmutable $tagsChangedAt = null;
 private ?\DateTimeImmutable $deletedAt = null;
 ```
 
-`#[DeletedAt]` is a pure marker. The flush listener never touches it — the caller assigns the value. Mapping listener registers a nullable column matching the configured `type:`.
+The flush listener never writes to `deletedAt`. Use [`Removable`](../../Removable/README.md) for the soft-delete + restore orchestration; it reads the marker through Timestampable metadata.
 
-Soft-remove orchestration (set `deletedAt = $clock->now()`, set author, flush) lives in the [`Removable`](../../Removable/docs/index.md) component, which reads the marker via Timestampable metadata.
+The [bundle](../../../Bundle/TimestampableBundle/README.md) ships a `DeletedAtTrait` already wired to `#[DeletedAt]`.
 
-A ready-made `DeletedAtTrait` ships in the [bundle](../../../Bundle/TimestampableBundle/README.md).
+## Overriding the auto-mapping
 
-## Auto-mapping vs explicit `#[ORM\Column]`
+Add `#[ORM\Column]` explicitly to override defaults (custom `name`, `length`, custom column options):
 
-With the mapping listener wired you can omit `#[ORM\Column]` — the listener registers a column from the attribute's `type` argument. Add `#[ORM\Column]` only when you need to override (`name`, `length`, `unique`, custom column options).
+```php
+#[CreatedAt]
+#[ORM\Column(name: 'inserted_at', nullable: false)]
+private ?\DateTimeImmutable $createdAt = null;
+```

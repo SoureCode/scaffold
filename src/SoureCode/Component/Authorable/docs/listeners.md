@@ -1,47 +1,48 @@
-# Listeners
+# Listeners (manual wiring)
 
-Two listeners. Both opt-in — wire them yourself (the bundle is not yet provided).
+Use the [`AuthorableBundle`](../../../Bundle/AuthorableBundle/README.md) when running Symfony. This page is for plain Doctrine setups.
 
 ## `AuthorableListener`
 
-Events: `prePersist`, `onFlush`.
-
 ```php
+use Doctrine\ORM\Events;
+use SoureCode\Component\Authorable\EventListener\AuthorableListener;
+use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
+use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
+
 $listener = new AuthorableListener(
-    authorProvider:   $myAuthorProvider, // AuthorProviderInterface
+    authorProvider:   $authorProvider, // AuthorProviderInterface
     metadataFactory:  new AuthorableMetadataFactory(),
-    changeSetMatcher: new ChangeSetMatcher(), // from doctrine-extensions
+    changeSetMatcher: new ChangeSetMatcher(),
 );
 
 $em->getEventManager()->addEventListener([Events::prePersist, Events::onFlush], $listener);
 ```
 
-Behavior:
-
-- `prePersist` fills `#[CreatedBy]` and non-nullable `#[UpdatedBy]` from `$authorProvider->getCurrentAuthor()`. If the provider returns `null`, the listener does nothing on this entity.
-- `onFlush` refreshes `#[UpdatedBy]` on scheduled updates, evaluates `#[ChangedBy]`, propagates to indirect watchers (insertions/updates/deletions/collection changes) via the shared `AbstractFlushListener` orchestration.
+Events: `prePersist`, `onFlush`.
 
 ## `AuthorableMappingListener`
 
-Event: `loadClassMetadata`.
-
 ```php
-$mappingListener = new AuthorableMappingListener($metadataFactory);
+use Doctrine\ORM\Events;
+use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
+use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
+
+$mappingListener = new AuthorableMappingListener(new AuthorableMetadataFactory());
+
 $em->getEventManager()->addEventListener([Events::loadClassMetadata], $mappingListener);
 ```
 
-For each property carrying `#[CreatedBy]`, `#[UpdatedBy]`, `#[ChangedBy]`, or `#[DeletedBy]` **without** a `#[ORM\ManyToOne]` mapping, registers an association:
+Event: `loadClassMetadata`.
+
+Registers `#[ORM\ManyToOne]` for any property carrying an Authorable attribute that does not already declare one. Target entity is read from the property's PHP type (must be a non-builtin object). Existing `#[ORM\ManyToOne]` is left alone.
 
 | attribute | join column nullable |
-|-----------|---------------------|
+|-----------|----------------------|
 | `CreatedBy` | `false` |
 | `UpdatedBy` | from `nullable:` argument |
 | `ChangedBy` | `true` |
 | `DeletedBy` | `true` |
-
-`#[DeletedBy]` is a marker only — the flush listener never fills it. The mapping listener registers the association so the soft-delete helper (e.g. `Removable`) has a target to write to.
-
-The target entity is taken from the property's PHP type (must be a non-builtin object type, otherwise throws). If `#[ORM\ManyToOne]` already exists, the listener leaves it alone.
 
 ## `AuthorProviderInterface`
 
@@ -54,4 +55,4 @@ interface AuthorProviderInterface
 }
 ```
 
-You provide the implementation. Typical: wrap Symfony's `Security::getUser()`. Background workers can return a system user object or `null`.
+Implement once at the integration layer. Return either the current user entity or `null`.

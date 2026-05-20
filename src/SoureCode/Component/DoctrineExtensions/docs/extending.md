@@ -1,8 +1,18 @@
-# Extending: building your own behavior
+# Build your own behavior
 
-Recipe for a new `*-able` package on top of `doctrine-extensions`.
+Recipe for a new `*-able` package on top of `sourecode/doctrine-extensions`.
 
-## 1. Attributes
+## Pick the lifecycle
+
+| Binding contract | Fires |
+|------------------|-------|
+| `PersistBindingInterface` | `prePersist`, only when the property is `null` |
+| `UpdateBindingInterface` | `prePersist` (unless `isNullable()`) + every `onFlush` for scheduled updates |
+| `ChangeBindingInterface` | `onFlush` when one of the watched fields appears in the changeset |
+
+A class can implement more than one.
+
+## 1. Attribute
 
 ```php
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
@@ -12,9 +22,7 @@ final class TouchedBy
 }
 ```
 
-## 2. Bindings
-
-Implement the contract that matches the lifecycle you need:
+## 2. Binding
 
 ```php
 final class TouchedByBinding implements UpdateBindingInterface
@@ -31,21 +39,20 @@ final class TouchedByBinding implements UpdateBindingInterface
 
 ## 3. Metadata + factory
 
-Implement `BehaviorMetadataInterface` and `BehaviorMetadataFactoryInterface`.
-
 ```php
 final class TouchableMetadata implements BehaviorMetadataInterface
 {
-    public function __construct(
-        public readonly array $updatedBindings,
-    ) {}
+    /** @param list<TouchedByBinding> $updateBindings */
+    public function __construct(public readonly array $updateBindings) {}
 
     public function getPersistBindings(): array { return []; }
-    public function getUpdateBindings(): array { return $this->updatedBindings; }
-    public function getChangeBindings(): array { return []; }
-    public function isEmpty(): bool { return $this->updatedBindings === []; }
+    public function getUpdateBindings(): array  { return $this->updateBindings; }
+    public function getChangeBindings(): array  { return []; }
+    public function isEmpty(): bool             { return $this->updateBindings === []; }
 }
 ```
+
+`BehaviorMetadataFactoryInterface::getMetadataFor($class)` reflects the class and produces a `TouchableMetadata` — cache it per class.
 
 ## 4. Listener
 
@@ -70,15 +77,35 @@ final class TouchableListener extends AbstractFlushListener
         return $this->provider->getValue();
     }
 
-    protected function handlePersistInterfaceFallback(object $entity): void { }
-    protected function handleUpdateInterfaceFallback(object $entity, $em, $uow): void { }
+    protected function handlePersistInterfaceFallback(object $entity): void {}
+
+    protected function handleUpdateInterfaceFallback(object $entity, EntityManagerInterface $em, UnitOfWork $uow): void {}
 }
 ```
 
-## 5. Wire up
+## 5. Wire
 
 ```php
-$em->getEventManager()->addEventListener([Events::prePersist, Events::onFlush], $listener);
+$em->getEventManager()->addEventListener(
+    [Events::prePersist, Events::onFlush],
+    new TouchableListener($provider, $factory, new ChangeSetMatcher()),
+);
 ```
 
-That's it — you get full path traversal, cycle protection, collection support, insert/update/delete propagation for free.
+## What you inherit
+
+- Dotted-path traversal (`address.city`, `owner.department.code`).
+- Collection traversal (`tags.title`, `tags`).
+- Cycle protection via `SplObjectStorage`.
+- Propagation across scheduled insert / update / delete on related entities.
+- `recomputeSingleEntityChangeSet` after each touch.
+- Backed-enum value normalization for value matchers.
+
+## Subclass hooks
+
+| Hook | Purpose |
+|------|---------|
+| `shouldRun(): bool` | Gate the whole listener (e.g. no current author → skip). |
+| `resolveValue(\ReflectionProperty): mixed` | Value written into a touched property. |
+| `handlePersistInterfaceFallback(object)` | Called when the entity has no behavior attributes but implements an opt-in interface. |
+| `handleUpdateInterfaceFallback(object, $em, $uow)` | Same, for `onFlush`. |

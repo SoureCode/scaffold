@@ -1,7 +1,5 @@
 # Attributes
 
-One attribute, targeting properties (`\Attribute::TARGET_PROPERTY`).
-
 ## `#[Versioned]`
 
 ```php
@@ -24,29 +22,27 @@ class Article
 }
 ```
 
-Marks the property as **tracked**. Any change to it triggers a snapshot row and the field is mirrored on the version table.
+Marks the property as tracked. Any change to it appends a snapshot row.
 
 No arguments.
 
+Target: `\Attribute::TARGET_PROPERTY`. Picked up from parent classes too.
+
 ### Supported property kinds
 
-| Kind | Schema | Snapshot |
-|------|--------|----------|
-| Scalar / enum field | mirrored column on the version row | column value |
-| `ManyToOne` (owning) | `<field>_id` column | foreign-key value |
-| `OneToOne` (either side) | `<field>_id` column | foreign-key value |
-| `OneToMany` (inverse collection) | separate `<source>_version_<field>` join table | one row per current element |
-| `ManyToMany` | separate `<source>_version_<field>` join table | one row per current element |
-
-### Inheritance
-
-Bindings are collected by walking up the class hierarchy — `#[Versioned]` declared on a parent property is picked up on the child entity.
+| Kind | Where it lives |
+|------|----------------|
+| Scalar / enum field | column on the snapshot row |
+| `ManyToOne` (owning) | `<field>_id` column on the snapshot row |
+| `OneToOne` (either side) | `<field>_id` column on the snapshot row |
+| `OneToMany` (inverse collection) | one row per element in `<entity>_version_<field>` |
+| `ManyToMany` | one row per element in `<entity>_version_<field>` |
 
 ### `target_version`
 
-If the target of a `#[Versioned]` association is itself `Versionable`, the snapshot row also records the target's current version number:
+If the target of a versioned relation is itself `Versionable`, the snapshot also records the target's current version number:
 
-- Single-cardinality → extra `<field>_version` column on the version row.
-- Collection → extra `target_version` column on the join table row.
+- Single-cardinality → `<field>_version` column on the snapshot row.
+- Collection → `target_version` column on the join table.
 
-"Current version" means the highest `version` ever written for that target, or `null` if the target has never produced a version row yet. Version numbers start at `1`; no `0` sentinel is used.
+`null` means the target had never produced a version row at snapshot time. Version numbers start at `1`; no `0` sentinel.

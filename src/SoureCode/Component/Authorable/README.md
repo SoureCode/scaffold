@@ -1,19 +1,22 @@
 # sourecode/authorable
 
-Automatic `createdBy` / `updatedBy` / `changedBy` tracking for Doctrine entities. Stores a reference to the author entity (`ManyToOne`).
+Track who created, updated, changed, or deleted a Doctrine entity. Mark a property with `#[CreatedBy]` / `#[UpdatedBy]` / `#[ChangedBy]` / `#[DeletedBy]`; the property is maintained automatically from a pluggable "current author" source.
 
-Built on top of [`sourecode/doctrine-extensions`](../DoctrineExtensions/README.md).
+## When to use
+
+You want "who" tracking on entities without hand-written setters at every write site.
+
+## When not to use
+
+You need a full per-field audit log. This is single-row state — pair with [`Versionable`](../Versionable/README.md) for history.
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest. See the root [README](../../../../README.md).
+Part of the `scaffold` monorepo. The [`authorable-bundle`](../../Bundle/AuthorableBundle/README.md) wires everything; without it, see [`docs/listeners.md`](docs/listeners.md).
 
-## Quick start
+## Minimal example
 
 ```php
-use SoureCode\Component\Authorable\Attribute\CreatedBy;
-use SoureCode\Component\Authorable\Attribute\UpdatedBy;
-
 #[ORM\Entity]
 class Article
 {
@@ -25,34 +28,36 @@ class Article
 }
 ```
 
-Provide an author source:
+`createdBy` fills once. `updatedBy` follows every change.
 
-```php
-final class SymfonySecurityAuthorProvider implements AuthorProviderInterface
-{
-    public function __construct(private readonly Security $security) {}
+## Reference
 
-    public function getCurrentAuthor(): ?object
-    {
-        return $this->security->getUser();
-    }
-}
-```
+- [Attributes](docs/attributes.md) — full per-attribute reference.
+- [Listeners](docs/listeners.md) — manual wiring (skip if using the bundle).
+- [Usage patterns](docs/usage.md) — author providers, interface fallback, recipes.
 
-Wire the listeners:
+## Behavior
 
-```php
-$metadataFactory = new AuthorableMetadataFactory();
+| Attribute | Filled |
+|-----------|--------|
+| `#[CreatedBy]` | On insert. Never overwritten. |
+| `#[UpdatedBy]` | On every change. `null` until the first change (override with `nullable: false`). |
+| `#[ChangedBy]` | On every change that touches a watched field. |
+| `#[DeletedBy]` | Never by this package — filled by [`Removable`](../Removable/README.md) on soft delete. |
 
-$listener = new AuthorableListener($authorProvider, $metadataFactory, new ChangeSetMatcher());
-$mappingListener = new AuthorableMappingListener($metadataFactory);
+When no current author is available (anonymous, CLI, worker), the property is left untouched.
 
-$em->getEventManager()->addEventListener([Events::prePersist, Events::onFlush], $listener);
-$em->getEventManager()->addEventListener([Events::loadClassMetadata], $mappingListener);
-```
+## Composition
 
-## Docs
+- [`Timestampable`](../Timestampable/README.md) — same lifecycle on the "when" side.
+- [`Removable`](../Removable/README.md) — fills `#[DeletedBy]` and clears it on restore.
+- [`Versionable`](../Versionable/README.md) — mark a `#[CreatedBy]`/`#[UpdatedBy]` property `#[Versioned]` and every change captures the author.
 
-- [Attributes](docs/attributes.md)
-- [Listeners and wiring](docs/listeners.md)
-- [Usage patterns](docs/usage.md)
+## Limits
+
+- `AuthorProviderInterface::getCurrentAuthor()` must return either a Doctrine-managed entity or `null`.
+- `#[ChangedBy]` with `field: []` or `matchValue: true` combined with multiple fields → `InvalidArgumentException`.
+
+## Stability
+
+Attribute names, arguments, defaults, and observable behavior are stable. The provider contract is stable.

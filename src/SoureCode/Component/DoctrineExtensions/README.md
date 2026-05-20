@@ -1,23 +1,28 @@
 # sourecode/doctrine-extensions
 
-Shared building blocks for SoureCode's attribute-driven Doctrine behavior packages (`sourecode/timestampable`, `sourecode/authorable`, …).
+Shared primitives for SoureCode's attribute-driven Doctrine behavior packages. Provides the binding/metadata contracts, the changeset matcher, and a flush-listener template so each `*-able` package can declare *what* to track and inherit *how* to react.
 
-Provides the contracts, the changeset matcher, and the `onFlush` orchestration. Doesn't ship any user-facing attributes on its own.
+## When to use
+
+Building a new attribute-driven Doctrine behavior. See [`docs/extending.md`](docs/extending.md).
+
+## When not to use
+
+Consuming an existing behavior. Use Authorable, Timestampable, Removable, or Versionable from this monorepo — they already build on this layer.
 
 ## Install
 
-Part of the `scaffold` monorepo — always installed with the rest.
+Part of the `scaffold` monorepo.
 
-## Provided
+## Public surface
 
-| Layer | Class / interface |
-|-------|-------------------|
-| Binding contracts | `Metadata\PersistBindingInterface`, `UpdateBindingInterface`, `ChangeBindingInterface` |
-| Metadata contracts | `Metadata\BehaviorMetadataInterface`, `BehaviorMetadataFactoryInterface` |
-| Changeset evaluation | `ChangeSet\ChangeSetMatcher` |
-| Listener orchestration | `EventListener\AbstractFlushListener` |
+| Layer | Contract |
+|-------|----------|
+| Bindings | `Metadata\PersistBindingInterface`, `UpdateBindingInterface`, `ChangeBindingInterface` |
+| Metadata | `Metadata\BehaviorMetadataInterface`, `BehaviorMetadataFactoryInterface` |
+| Changeset | `ChangeSet\ChangeSetMatcher` |
+| Listener | `EventListener\AbstractFlushListener` |
 
-## Docs
+## Stability
 
-- [Architecture](docs/architecture.md)
-- [Extending](docs/extending.md)
+Public contracts are stable.
