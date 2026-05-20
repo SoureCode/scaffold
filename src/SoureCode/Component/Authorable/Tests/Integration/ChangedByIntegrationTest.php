@@ -16,6 +16,7 @@ use SoureCode\Component\Authorable\EventListener\AuthorableListener;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\Authorable\Tests\Fixtures\ArticleWithChangedBy;
+use SoureCode\Component\Authorable\Tests\Fixtures\Topic;
 use SoureCode\Component\Authorable\Tests\Fixtures\User;
 use SoureCode\Component\Authorable\Tests\Support\FixedAuthorProvider;
 use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
@@ -53,8 +54,33 @@ final class ChangedByIntegrationTest extends TestCase
 
         (new SchemaTool($this->entityManager))->createSchema([
             $this->entityManager->getClassMetadata(User::class),
+            $this->entityManager->getClassMetadata(Topic::class),
             $this->entityManager->getClassMetadata(ArticleWithChangedBy::class),
         ]);
+    }
+
+    public function testChangedByDottedPathFiresWhenRelatedFieldChanges(): void
+    {
+        $alice = new User('alice');
+        $this->entityManager->persist($alice);
+        $this->entityManager->flush();
+
+        $this->authorProvider->setAuthor($alice);
+
+        $topic = new Topic('original');
+        $this->entityManager->persist($topic);
+
+        $article = new ArticleWithChangedBy('hello', 'body-1');
+        $article->setTopic($topic);
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+
+        self::assertNull($article->getTopicChangedBy(), 'Persist alone does not fill the dotted-path ChangedBy');
+
+        $topic->setLabel('renamed');
+        $this->entityManager->flush();
+
+        self::assertSame($alice, $article->getTopicChangedBy(), 'Changing topic.label must stamp topicChangedBy on the article');
     }
 
     public function testChangedByStampsWhenWatchedFieldChanges(): void

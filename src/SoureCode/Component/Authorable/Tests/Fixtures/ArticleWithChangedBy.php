@@ -23,8 +23,15 @@ class ArticleWithChangedBy
     #[ORM\Column(type: Types::STRING)]
     private string $body;
 
+    #[ORM\ManyToOne(targetEntity: Topic::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Topic $topic = null;
+
     #[ChangedBy(field: ['title', 'body'])]
     private ?User $changedBy = null;
+
+    #[ChangedBy(field: 'topic.label')]
+    private ?User $topicChangedBy = null;
 
     public function __construct(string $title, string $body)
     {
@@ -47,8 +54,18 @@ class ArticleWithChangedBy
         $this->body = $body;
     }
 
+    public function setTopic(?Topic $topic): void
+    {
+        $this->topic = $topic;
+    }
+
     public function getChangedBy(): ?User
     {
         return $this->changedBy;
+    }
+
+    public function getTopicChangedBy(): ?User
+    {
+        return $this->topicChangedBy;
     }
 }
