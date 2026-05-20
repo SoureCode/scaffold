@@ -36,6 +36,8 @@ return static function (ContainerConfigurator $container): void {
         ->args([
             service(TraceContextFactory::class),
             service(TraceContextHolder::class),
+            'TRACE_ID',
+            service(LoggerInterface::class)->nullOnInvalid(),
         ])
         ->tag('kernel.event_listener', ['event' => ConsoleEvents::COMMAND, 'method' => 'onCommand', 'priority' => 1024]);
 

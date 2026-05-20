@@ -30,6 +30,7 @@ final class TraceableBundle extends AbstractBundle
                     ->addDefaultsIfNotSet()
                     ->children()
                         ->booleanNode('enabled')->defaultTrue()->end()
+                        ->scalarNode('env_var')->defaultValue('TRACE_ID')->end()
                     ->end()
                 ->end()
                 ->arrayNode('messenger')
@@ -44,7 +45,7 @@ final class TraceableBundle extends AbstractBundle
     /**
      * @param array{
      *     http:      array{enabled: bool, request_header: ?string, response_header: ?string},
-     *     console:   array{enabled: bool},
+     *     console:   array{enabled: bool, env_var: ?string},
      *     messenger: array{enabled: bool},
      * } $config
      */
@@ -56,12 +57,15 @@ final class TraceableBundle extends AbstractBundle
             $builder->removeDefinition(HttpTraceListener::class);
         } else {
             $builder->getDefinition(HttpTraceListener::class)
-                ->replaceArgument(2, $config['http']['request_header'])
-                ->replaceArgument(3, $config['http']['response_header']);
+                ->setArgument('$requestHeader', $config['http']['request_header'])
+                ->setArgument('$responseHeader', $config['http']['response_header']);
         }
 
         if (!$config['console']['enabled']) {
             $builder->removeDefinition(ConsoleTraceListener::class);
+        } else {
+            $builder->getDefinition(ConsoleTraceListener::class)
+                ->setArgument('$envVar', $config['console']['env_var']);
         }
 
         if (!$config['messenger']['enabled']) {
