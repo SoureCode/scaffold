@@ -21,6 +21,8 @@ Each sub-package has its own `composer.json`. The root `composer.json` is regene
 | [`sourecode/removable`](src/SoureCode/Component/Removable/README.md) | — |
 | [`sourecode/traceable`](src/SoureCode/Component/Traceable/README.md) | [`sourecode/traceable-bundle`](src/SoureCode/Bundle/TraceableBundle/README.md) |
 | [`sourecode/versionable`](src/SoureCode/Component/Versionable/README.md) | [`sourecode/versionable-bundle`](src/SoureCode/Bundle/VersionableBundle/README.md) |
+| [`sourecode/settings`](src/SoureCode/Component/Settings/README.md) | [`sourecode/settings-bundle`](src/SoureCode/Bundle/SettingsBundle/README.md) |
+| [`sourecode/feature-flags`](src/SoureCode/Component/FeatureFlags/README.md) | [`sourecode/feature-flags-bundle`](src/SoureCode/Bundle/FeatureFlagsBundle/README.md) |
 | — | [`sourecode/recent-authentication-bundle`](src/SoureCode/Bundle/RecentAuthenticationBundle/README.md) |
 
 ## Workflow

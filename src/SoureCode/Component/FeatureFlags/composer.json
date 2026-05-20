@@ -1,0 +1,21 @@
+{
+    "name": "sourecode/feature-flags",
+    "type": "library",
+    "description": "Generic boolean feature flag store backed by Doctrine ORM.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "doctrine/orm": "^3.6"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.1"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Component\\FeatureFlags\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Component\\FeatureFlags\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}

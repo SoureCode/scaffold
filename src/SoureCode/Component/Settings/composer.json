@@ -1,0 +1,21 @@
+{
+    "name": "sourecode/settings",
+    "type": "library",
+    "description": "Generic global key/value settings store backed by Doctrine ORM.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "doctrine/orm": "^3.6"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.1"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Component\\Settings\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Component\\Settings\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable"
+}
