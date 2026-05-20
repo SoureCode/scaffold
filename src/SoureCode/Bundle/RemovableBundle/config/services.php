@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\Removable\Remover;
@@ -23,6 +24,7 @@ return static function (ContainerConfigurator $container): void {
             service(TimestampableMetadataFactory::class),
             service(AuthorableMetadataFactory::class),
             service(AuthorProviderInterface::class)->nullOnInvalid(),
+            service(LoggerInterface::class)->nullOnInvalid(),
         ]);
 
     $services->alias(RemoverInterface::class, Remover::class)->public();

@@ -12,6 +12,8 @@ use Doctrine\ORM\Events;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\Removable\Remover;
@@ -180,5 +182,49 @@ final class RemoverIntegrationTest extends TestCase
         $this->expectExceptionMessage('#[DeletedAt]');
 
         $this->remover->remove($entity);
+    }
+
+    public function testRestoreOnLiveEntityLogsWarning(): void
+    {
+        $logger = $this->captureLogger();
+
+        $remover = new Remover(
+            $this->entityManager,
+            $this->clock,
+            new TimestampableMetadataFactory(),
+            new AuthorableMetadataFactory(),
+            $this->authorProvider,
+            $logger,
+        );
+
+        $article = new Article('hello');
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+
+        $remover->restore($article);
+
+        self::assertCount(1, $logger->records);
+        self::assertSame('warning', $logger->records[0]['level']);
+        self::assertStringContainsString('deletedAt was already null', $logger->records[0]['message']);
+    }
+
+    /**
+     * @return LoggerInterface&object{records: list<array{level: string, message: string, context: array<string, mixed>}>}
+     */
+    private function captureLogger(): LoggerInterface
+    {
+        return new class extends AbstractLogger {
+            /** @var list<array{level: string, message: string, context: array<string, mixed>}> */
+            public array $records = [];
+
+            public function log($level, $message, array $context = []): void
+            {
+                $this->records[] = [
+                    'level' => (string) $level,
+                    'message' => (string) $message,
+                    'context' => $context,
+                ];
+            }
+        };
     }
 }

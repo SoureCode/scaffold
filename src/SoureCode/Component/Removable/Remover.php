@@ -6,6 +6,8 @@ namespace SoureCode\Component\Removable;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\Timestampable\Metadata\TimestampableMetadataFactory;
@@ -18,6 +20,7 @@ final class Remover implements RemoverInterface
         private readonly TimestampableMetadataFactory $timestampableMetadata,
         private readonly AuthorableMetadataFactory $authorableMetadata,
         private readonly ?AuthorProviderInterface $authorProvider = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -109,8 +112,21 @@ final class Remover implements RemoverInterface
             ));
         }
 
+        $alreadyLive = true;
+
         foreach ($deletedAtBindings as $binding) {
+            if ($binding->getProperty()->getValue($entity) !== null) {
+                $alreadyLive = false;
+            }
+
             $binding->getProperty()->setValue($entity, null);
+        }
+
+        if ($alreadyLive) {
+            $this->logger->warning(
+                'Removable: restore() called on {class} but deletedAt was already null — no-op.',
+                ['class' => $entity::class],
+            );
         }
 
         foreach ($this->authorableMetadata->getMetadataFor($entity::class)->getDeletedBindings() as $binding) {
