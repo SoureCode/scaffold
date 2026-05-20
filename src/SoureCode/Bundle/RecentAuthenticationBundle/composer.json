@@ -1,0 +1,33 @@
+{
+    "name": "sourecode/recent-authentication-bundle",
+    "type": "symfony-bundle",
+    "description": "Symfony bundle providing the IS_AUTHENTICATED_RECENTLY security attribute, session-backed reauthentication gate, and matching Twig function.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "symfony/clock": "^8.0",
+        "symfony/event-dispatcher": "^8.0",
+        "symfony/framework-bundle": "^8.0",
+        "symfony/http-foundation": "^8.0",
+        "symfony/http-kernel": "^8.0",
+        "symfony/routing": "^8.0",
+        "symfony/security-bundle": "^8.0",
+        "symfony/security-core": "^8.0",
+        "symfony/security-http": "^8.0",
+        "symfony/twig-bundle": "^8.0",
+        "twig/twig": "^3.16"
+    },
+    "autoload": {
+        "psr-4": { "SoureCode\\Bundle\\RecentAuthenticationBundle\\": "" },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": { "SoureCode\\Bundle\\RecentAuthenticationBundle\\Tests\\": "Tests/" }
+    },
+    "minimum-stability": "stable",
+    "require-dev": {
+        "nyholm/symfony-bundle-test": "^3.1",
+        "phpunit/phpunit": "^13.1",
+        "sourecode/doctrine-extensions-bundle": "self.version"
+    }
+}

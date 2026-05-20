@@ -10,17 +10,25 @@
         "psr/log": "^3.0",
         "symfony/clock": "^8.0",
         "symfony/console": "^8.0",
+        "symfony/event-dispatcher": "^8.0",
         "symfony/framework-bundle": "^8.0",
+        "symfony/http-foundation": "^8.0",
         "symfony/http-kernel": "^8.0",
         "symfony/messenger": "^8.0",
+        "symfony/routing": "^8.0",
         "symfony/security-bundle": "^8.0",
-        "symfony/uid": "^8.0"
+        "symfony/security-core": "^8.0",
+        "symfony/security-http": "^8.0",
+        "symfony/twig-bundle": "^8.0",
+        "symfony/uid": "^8.0",
+        "twig/twig": "^3.16"
     },
     "replace": {
         "sourecode/authorable": "self.version",
         "sourecode/authorable-bundle": "self.version",
         "sourecode/doctrine-extensions": "self.version",
         "sourecode/doctrine-extensions-bundle": "self.version",
+        "sourecode/recent-authentication-bundle": "self.version",
         "sourecode/removable": "self.version",
         "sourecode/removable-bundle": "self.version",
         "sourecode/timestampable": "self.version",
@@ -34,6 +42,7 @@
         "psr-4": {
             "SoureCode\\Bundle\\AuthorableBundle\\": "src/SoureCode/Bundle/AuthorableBundle/",
             "SoureCode\\Bundle\\DoctrineExtensionsBundle\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/",
+            "SoureCode\\Bundle\\RecentAuthenticationBundle\\": "src/SoureCode/Bundle/RecentAuthenticationBundle/",
             "SoureCode\\Bundle\\RemovableBundle\\": "src/SoureCode/Bundle/RemovableBundle/",
             "SoureCode\\Bundle\\TimestampableBundle\\": "src/SoureCode/Bundle/TimestampableBundle/",
             "SoureCode\\Bundle\\TraceableBundle\\": "src/SoureCode/Bundle/TraceableBundle/",
@@ -48,6 +57,7 @@
         "exclude-from-classmap": [
             "/src/SoureCode/Bundle/AuthorableBundle/Tests",
             "/src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests",
+            "/src/SoureCode/Bundle/RecentAuthenticationBundle/Tests",
             "/src/SoureCode/Bundle/RemovableBundle/Tests",
             "/src/SoureCode/Bundle/TimestampableBundle/Tests",
             "/src/SoureCode/Bundle/TraceableBundle/Tests",
@@ -64,6 +74,7 @@
         "psr-4": {
             "SoureCode\\Bundle\\AuthorableBundle\\Tests\\": "src/SoureCode/Bundle/AuthorableBundle/Tests/",
             "SoureCode\\Bundle\\DoctrineExtensionsBundle\\Tests\\": "src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests/",
+            "SoureCode\\Bundle\\RecentAuthenticationBundle\\Tests\\": "src/SoureCode/Bundle/RecentAuthenticationBundle/Tests/",
             "SoureCode\\Bundle\\RemovableBundle\\Tests\\": "src/SoureCode/Bundle/RemovableBundle/Tests/",
             "SoureCode\\Bundle\\TimestampableBundle\\Tests\\": "src/SoureCode/Bundle/TimestampableBundle/Tests/",
             "SoureCode\\Bundle\\TraceableBundle\\Tests\\": "src/SoureCode/Bundle/TraceableBundle/Tests/",
