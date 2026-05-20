@@ -104,6 +104,25 @@ final class ChangeSetMatcherTest extends TestCase
         );
     }
 
+    public function testFindPropertyWalksParentClassChain(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $child = new class('child') extends Sample {
+        };
+
+        $property = $matcher->findProperty($child::class, 'label');
+
+        self::assertNotNull($property);
+        self::assertSame('label', $property->getName());
+    }
+
+    public function testFindPropertyReturnsNullForUnknownField(): void
+    {
+        $matcher = new ChangeSetMatcher();
+
+        self::assertNull($matcher->findProperty(Sample::class, 'nonexistent'));
+    }
+
     /**
      * @param array<int, array<string, array{0: mixed, 1: mixed}>> $changeSets
      */

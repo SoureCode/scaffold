@@ -285,7 +285,12 @@ abstract class AbstractFlushListener
         }
 
         [$head, $tail] = explode('.', $path, 2);
-        $reflection = (new \ReflectionClass($current::class))->getProperty($head);
+        $reflection = $this->changeSetMatcher->findProperty($current::class, $head);
+
+        if ($reflection === null) {
+            return false;
+        }
+
         $related = $reflection->getValue($current);
 
         if ($related === $changedRelated) {

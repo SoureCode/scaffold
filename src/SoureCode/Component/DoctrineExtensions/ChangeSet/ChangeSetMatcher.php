@@ -129,7 +129,14 @@ final class ChangeSetMatcher
         return $this->matchesPath($binding, $path, $entity, $unitOfWork, $visited);
     }
 
-    private function findProperty(string $class, string $name): ?\ReflectionProperty
+    /**
+     * Walks the class hierarchy and returns the first `\ReflectionProperty`
+     * named `$name`, or `null` if no class in the chain declares it.
+     * Shared with `AbstractFlushListener::walkPath`.
+     *
+     * @param class-string $class
+     */
+    public function findProperty(string $class, string $name): ?\ReflectionProperty
     {
         $reflection = new \ReflectionClass($class);
 

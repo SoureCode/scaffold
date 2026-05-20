@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\DoctrineExtensions\Tests\Fixtures;
 
-final class Sample
+class Sample
 {
     public ?Sample $parent = null;
 
