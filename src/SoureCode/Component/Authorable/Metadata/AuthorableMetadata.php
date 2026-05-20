@@ -38,6 +38,9 @@ final class AuthorableMetadata implements BehaviorMetadataInterface
     }
 
     /**
+     * Outside `BehaviorMetadataInterface` — only `AuthorableMappingListener` consumes these.
+     * The base flush listener never touches `#[DeletedBy]`; clearing is done by `Remover`.
+     *
      * @return list<DeletedByBinding>
      */
     public function getDeletedBindings(): array

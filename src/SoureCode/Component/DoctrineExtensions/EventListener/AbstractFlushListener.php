@@ -73,6 +73,8 @@ abstract class AbstractFlushListener
             $this->touchScheduled($entity, $entityManager, $unitOfWork);
         }
 
+        // Same list iterated again on purpose: pass 1 stamps the entity itself; pass 2 walks the
+        // identity map to stamp any *other* entity that watches one of these via a dotted path.
         foreach ($unitOfWork->getScheduledEntityUpdates() as $changedRelated) {
             $this->touchRelatedWatchers($changedRelated, $entityManager, $unitOfWork, useChangeSet: true, ignoreValueMatcher: false);
         }
@@ -209,6 +211,8 @@ abstract class AbstractFlushListener
 
         foreach ($bindings as $binding) {
             foreach ($binding->getFields() as $field) {
+                // Non-dotted fields target the entity itself; those are handled by touchScheduled.
+                // This pass only walks relational paths to find *other* entities that watch the changed one.
                 if (!str_contains($field, '.')) {
                     continue;
                 }
@@ -351,6 +355,8 @@ abstract class AbstractFlushListener
 
         if ($touched) {
             if (!$this->isScheduledForUpdate($owner, $unitOfWork)) {
+                // Empty changeset here is a placeholder — recomputeSingleEntityChangeSet below
+                // populates it from the owner's current property values.
                 $unitOfWork->scheduleExtraUpdate($owner, []);
             }
 

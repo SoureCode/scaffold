@@ -22,6 +22,11 @@ final class TimestampableListener extends AbstractFlushListener
         parent::__construct($metadataFactory, $changeSetMatcher);
     }
 
+    /**
+     * Always true: timestamp stamping has no per-request precondition.
+     * The hook exists on the base class for sibling behaviors (e.g. Authorable)
+     * that disable themselves when no current author is available.
+     */
     protected function shouldRun(): bool
     {
         return true;

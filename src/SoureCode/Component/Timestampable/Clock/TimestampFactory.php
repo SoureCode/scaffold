@@ -19,6 +19,9 @@ final class TimestampFactory
         $type = $property->getType();
 
         if ($type instanceof \ReflectionNamedType) {
+            // Match is exact-class only: `\DateTime` selects the mutable branch,
+            // anything else (`\DateTimeImmutable`, `\DateTimeInterface`, …) falls
+            // through to the immutable default. Don't reorder without re-checking.
             return match ($type->getName()) {
                 'int' => (int) $now->format('U'),
                 \DateTime::class => \DateTime::createFromInterface($now),

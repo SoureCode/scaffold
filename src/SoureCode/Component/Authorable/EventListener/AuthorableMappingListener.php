@@ -63,6 +63,7 @@ final class AuthorableMappingListener
             'fieldName' => $fieldName,
             'targetEntity' => $targetEntity,
             'joinColumns' => [[
+                // 'name' => null lets Doctrine derive the column name from the field (e.g. `created_by_id`).
                 'name' => null,
                 'referencedColumnName' => 'id',
                 'nullable' => $nullable,

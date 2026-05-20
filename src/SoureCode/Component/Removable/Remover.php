@@ -22,6 +22,9 @@ final class Remover implements RemoverInterface
     }
 
     /**
+     * Note: `$soft = false` with `$flush = false` is legal but a no-op until the
+     * next flush — `EntityManager::remove()` only schedules the delete.
+     *
      * @template T of object
      *
      * @param T $entity
