@@ -184,6 +184,52 @@ final class RemoverIntegrationTest extends TestCase
         $this->remover->remove($entity);
     }
 
+    public function testRestoreThrowsOnEntityWithoutDeletedAtMarker(): void
+    {
+        $entity = new ArticleWithoutMarker('hello');
+        $this->entityManager->persist($entity);
+        $this->entityManager->flush();
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('cannot restore');
+
+        $this->remover->restore($entity);
+    }
+
+    public function testRestoreWithFlushFalseDoesNotPersistUntilFlush(): void
+    {
+        $article = new Article('hello');
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+
+        $this->remover->remove($article);
+        $id = $article->getId();
+
+        $this->remover->restore($article, flush: false);
+        self::assertNull($article->getDeletedAt());
+
+        $this->entityManager->clear();
+        $reloaded = $this->entityManager->find(Article::class, $id);
+        self::assertNotNull($reloaded);
+        self::assertNotNull($reloaded->getDeletedAt(), 'Without flush the row in DB is still soft-deleted');
+    }
+
+    public function testHardRemoveWithFlushFalseLeavesRowUntilFlush(): void
+    {
+        $article = new Article('hello');
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+        $id = $article->getId();
+
+        $this->remover->remove($article, soft: false, flush: false);
+
+        $this->entityManager->clear();
+        self::assertNotNull(
+            $this->entityManager->find(Article::class, $id),
+            'EntityManager::remove() only schedules; without flush the row is still in the database.',
+        );
+    }
+
     public function testRestoreOnLiveEntityLogsWarning(): void
     {
         $logger = $this->captureLogger();
