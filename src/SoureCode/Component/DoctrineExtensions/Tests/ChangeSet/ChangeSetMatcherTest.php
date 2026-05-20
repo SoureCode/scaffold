@@ -189,6 +189,40 @@ final class ChangeSetMatcherTest extends TestCase
         self::assertFalse($matcher->valueMatches($binding, SampleStatus::Published));
     }
 
+    public function testMatchesPathDescendsIntoCollectionElement(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $parent = new Sample('p');
+        $childA = new Sample('a');
+        $childB = new Sample('b');
+        $parent->children->add($childA);
+        $parent->children->add($childB);
+
+        $binding = $this->makeBinding($parent, ['children.label']);
+        $unitOfWork = $this->mockUnitOfWork([
+            spl_object_id($parent) => [],
+            spl_object_id($childA) => [],
+            spl_object_id($childB) => ['label' => ['b', 'b2']],
+        ]);
+
+        self::assertTrue($matcher->matches($binding, $parent, $unitOfWork));
+    }
+
+    public function testCollectionTraversalReturnsFalseWhenNoElementMatches(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $parent = new Sample('p');
+        $parent->children->add(new Sample('a'));
+        $parent->children->add(new Sample('b'));
+
+        $binding = $this->makeBinding($parent, ['children.label']);
+        $unitOfWork = $this->mockUnitOfWork([
+            spl_object_id($parent) => [],
+        ]);
+
+        self::assertFalse($matcher->matches($binding, $parent, $unitOfWork));
+    }
+
     public function testFiresOnNewlyAssignedRelatedFromChangeSet(): void
     {
         $matcher = new ChangeSetMatcher();
