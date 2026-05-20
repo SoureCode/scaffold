@@ -153,4 +153,49 @@ final class VersionableRelationsIntegrationTest extends TestCase
         self::assertSame($tagA->getId(), (int) $rows[0]['target_id']);
         self::assertSame($tagB->getId(), (int) $rows[1]['target_id']);
     }
+
+    public function testCollectionElementRemovalProducesShrunkSnapshot(): void
+    {
+        $tagA = new Tag('a');
+        $tagB = new Tag('b');
+        $article = new RichArticle('hello');
+
+        $this->entityManager->persist($tagA);
+        $this->entityManager->persist($tagB);
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+
+        $article->addTag($tagA);
+        $article->addTag($tagB);
+        $this->entityManager->flush();
+
+        $article->removeTag($tagA);
+        $this->entityManager->flush();
+
+        $versions = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT id, version FROM versionable_rich_article_version WHERE entity_id = ? ORDER BY version ASC',
+            [$article->getId()],
+        );
+        self::assertCount(2, $versions, 'Two snapshots: add (v1), remove (v2)');
+
+        $v1Rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT target_id FROM versionable_rich_article_version_tags WHERE version_id = ? ORDER BY target_id ASC',
+            [$versions[0]['id']],
+        );
+        self::assertSame(
+            [$tagA->getId(), $tagB->getId()],
+            array_map(static fn(array $row): int => (int) $row['target_id'], $v1Rows),
+            'v1 captures both tags',
+        );
+
+        $v2Rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT target_id FROM versionable_rich_article_version_tags WHERE version_id = ?',
+            [$versions[1]['id']],
+        );
+        self::assertSame(
+            [$tagB->getId()],
+            array_map(static fn(array $row): int => (int) $row['target_id'], $v2Rows),
+            'v2 captures only the remaining tag after removeTag(tagA)',
+        );
+    }
 }
