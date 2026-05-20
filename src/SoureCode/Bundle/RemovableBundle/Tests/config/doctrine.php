@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use SoureCode\Bundle\RemovableBundle\Tests\Support\NullAuthorProvider;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
+use SoureCode\Component\Removable\Tests\Support\FixedAuthorProvider;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 
@@ -34,6 +34,6 @@ return static function (ContainerBuilder $container): void {
         'author_provider' => 'app.author_provider',
     ]);
 
-    $container->setDefinition('app.author_provider', (new Definition(NullAuthorProvider::class))->setPublic(true));
+    $container->setDefinition('app.author_provider', (new Definition(FixedAuthorProvider::class))->setPublic(true));
     $container->setAlias(AuthorProviderInterface::class, 'app.author_provider')->setPublic(true);
 };
