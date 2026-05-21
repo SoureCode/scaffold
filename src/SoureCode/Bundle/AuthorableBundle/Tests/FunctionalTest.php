@@ -78,6 +78,46 @@ final class FunctionalTest extends AbstractBundleTestCase
         self::assertSame($bob, $article->getUpdatedBy(), 'onFlush listener must update updatedBy to the active author');
     }
 
+    public function testListenerPreservesUserSetUpdatedBy(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $entityManager = $container->get('doctrine.orm.default_entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
+
+        (new SchemaTool($entityManager))->createSchema([
+            $entityManager->getClassMetadata(User::class),
+            $entityManager->getClassMetadata(Article::class),
+        ]);
+
+        $alice = new User('alice');
+        $bob = new User('bob');
+        $carol = new User('carol');
+        $entityManager->persist($alice);
+        $entityManager->persist($bob);
+        $entityManager->persist($carol);
+        $entityManager->flush();
+
+        $provider = $container->get('app.author_provider');
+        self::assertInstanceOf(FixedAuthorProvider::class, $provider);
+
+        $provider->setAuthor($alice);
+        $article = new Article('hello');
+        $entityManager->persist($article);
+        $entityManager->flush();
+
+        $provider->setAuthor($bob);
+        $article->title = 'edited';
+        $article->setUpdatedBy($carol);
+        $entityManager->flush();
+
+        self::assertSame(
+            $carol,
+            $article->getUpdatedBy(),
+            'listener must NOT overwrite an UpdatedBy value the user set explicitly',
+        );
+    }
+
     public function testUserClassConfigPropagatesToMappingListener(): void
     {
         self::bootKernel();

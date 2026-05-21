@@ -6,6 +6,7 @@ namespace SoureCode\Bundle\AuthorableBundle;
 
 use SoureCode\Bundle\AuthorableBundle\Security\SecurityAuthorProvider;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
+use SoureCode\Component\Authorable\EventListener\AuthorableListener;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -26,11 +27,24 @@ final class AuthorableBundle extends AbstractBundle
                     ->defaultNull()
                     ->info('Concrete entity class used as ManyToOne target for every CreatedBy/UpdatedBy/ChangedBy binding. When null, the property\'s PHP type is used.')
                 ->end()
+                ->arrayNode('listener_priorities')
+                    ->addDefaultsIfNotSet()
+                    ->info('Doctrine event listener priorities. Higher numbers run first.')
+                    ->children()
+                        ->integerNode('pre_persist')->defaultValue(0)->end()
+                        ->integerNode('on_flush')->defaultValue(0)->end()
+                        ->integerNode('load_class_metadata')->defaultValue(0)->end()
+                    ->end()
+                ->end()
             ->end();
     }
 
     /**
-     * @param array{author_provider: ?string, user_class: ?string} $config
+     * @param array{
+     *     author_provider: ?string,
+     *     user_class: ?string,
+     *     listener_priorities: array{pre_persist: int, on_flush: int, load_class_metadata: int},
+     * } $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
@@ -44,5 +58,23 @@ final class AuthorableBundle extends AbstractBundle
             $builder->getDefinition(AuthorableMappingListener::class)
                 ->setArgument('$userClass', $config['user_class']);
         }
+
+        $builder->getDefinition(AuthorableListener::class)
+            ->clearTag('doctrine.event_listener')
+            ->addTag('doctrine.event_listener', [
+                'event' => 'prePersist',
+                'priority' => $config['listener_priorities']['pre_persist'],
+            ])
+            ->addTag('doctrine.event_listener', [
+                'event' => 'onFlush',
+                'priority' => $config['listener_priorities']['on_flush'],
+            ]);
+
+        $builder->getDefinition(AuthorableMappingListener::class)
+            ->clearTag('doctrine.event_listener')
+            ->addTag('doctrine.event_listener', [
+                'event' => 'loadClassMetadata',
+                'priority' => $config['listener_priorities']['load_class_metadata'],
+            ]);
     }
 }
