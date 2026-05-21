@@ -149,4 +149,65 @@ final class VersionerIntegrationTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->versioner->applyVersion($article, 99);
     }
+
+    public function testDiffReportsChangedFieldsBetweenTwoVersions(): void
+    {
+        $article = new Article('alpha');
+        $article->setBody('body-alpha');
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+
+        $article->setTitle('beta');
+        $this->entityManager->flush();
+        $article->setTitle('gamma');
+        $article->setBody('body-gamma');
+        $this->entityManager->flush();
+
+        $diff = $this->versioner->diff(Article::class, $article->getId(), 1, 2);
+
+        self::assertNotNull($diff);
+        self::assertTrue($diff->hasChanges());
+        self::assertSame(['title', 'body'], $diff->changedFieldNames());
+        self::assertSame('beta', $diff->changes['title']['before']);
+        self::assertSame('gamma', $diff->changes['title']['after']);
+        self::assertSame('body-alpha', $diff->changes['body']['before']);
+        self::assertSame('body-gamma', $diff->changes['body']['after']);
+    }
+
+    public function testDiffReturnsNullWhenVersionMissing(): void
+    {
+        $article = new Article('alpha');
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+        $article->setTitle('beta');
+        $this->entityManager->flush();
+
+        self::assertNull($this->versioner->diff(Article::class, $article->getId(), 1, 99));
+    }
+
+    public function testPruneRemovesRowsOlderThanCutoffKeepingLatestN(): void
+    {
+        $article = new Article('alpha');
+        $this->entityManager->persist($article);
+        $this->entityManager->flush();
+
+        $this->clock->modify('+1 day');
+        $article->setTitle('beta');
+        $this->entityManager->flush();
+
+        $this->clock->modify('+1 day');
+        $article->setTitle('gamma');
+        $this->entityManager->flush();
+
+        $this->clock->modify('+1 day');
+        $article->setTitle('delta');
+        $this->entityManager->flush();
+
+        $cutoff = new \DateTimeImmutable('2026-05-19T12:00:00+00:00');
+        $deleted = $this->versioner->prune(Article::class, $cutoff, keepLast: 1);
+
+        self::assertGreaterThan(0, $deleted);
+        $history = $this->versioner->findHistory(Article::class, $article->getId());
+        self::assertSame('delta', end($history)->getTitle(), 'latest version must be kept');
+    }
 }

@@ -6,6 +6,7 @@ namespace SoureCode\Component\Versionable\EventListener;
 
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Event\OnFlushEventArgs;
@@ -244,20 +245,18 @@ final class VersionableListener
         $idType = Type::getType($classMetadata->getFieldMapping($idField)->type);
         $entityIdValue = $idType->convertToDatabaseValue($entityId, $platform);
 
-        // MAX(version) + 1 is racy under concurrent writers; the (entity_id, version)
-        // unique index on the version table rejects duplicates. Callers that expect
-        // contention must wrap the flush in a retry loop.
-        $nextVersion = ((int) $connection->fetchOne(
-            \sprintf('SELECT MAX(version) FROM %s WHERE entity_id = ?', $versionTable),
-            [$entityIdValue],
-        )) + 1;
-
         $row = [
             'entity_id' => $entityIdValue,
-            'version' => $nextVersion,
             'created_at' => Type::getType(Types::DATETIMETZ_IMMUTABLE)
                 ->convertToDatabaseValue(\DateTimeImmutable::createFromInterface($this->clock->now()), $platform),
         ];
+
+        // STI: the version table is rooted at the source table and shared
+        // across the hierarchy; stamp the discriminator value so restore can
+        // re-instantiate the right subclass.
+        if (!$classMetadata->isInheritanceTypeNone() && $classMetadata->discriminatorColumn !== null) {
+            $row[$classMetadata->discriminatorColumn['name']] = $classMetadata->discriminatorValue;
+        }
 
         /** @var array<int, array{binding: VersionedBinding, targetClass: class-string}> $collectionInserts */
         $collectionInserts = [];
@@ -270,6 +269,24 @@ final class VersionableListener
                 $value = $binding->property->getValue($entity);
                 $type = Type::getType($classMetadata->getFieldMapping($fieldName)->type);
                 $row[$columnName] = $type->convertToDatabaseValue($value, $platform);
+
+                continue;
+            }
+
+            // Embeddables: writeSnapshot reads each flat field "<prop>.<sub>"
+            // via Doctrine's ClassMetadata accessor so the embedded value
+            // object's columns are persisted on the version row.
+            if (isset($classMetadata->embeddedClasses[$fieldName])) {
+                foreach ($classMetadata->getFieldNames() as $flat) {
+                    if (!str_starts_with($flat, $fieldName . '.')) {
+                        continue;
+                    }
+
+                    $columnName = $classMetadata->getColumnName($flat);
+                    $value = $classMetadata->getFieldValue($entity, $flat);
+                    $type = Type::getType($classMetadata->getFieldMapping($flat)->type);
+                    $row[$columnName] = $type->convertToDatabaseValue($value, $platform);
+                }
 
                 continue;
             }
@@ -294,12 +311,67 @@ final class VersionableListener
             }
         }
 
-        $connection->insert($versionTable, $row);
-        $versionRowId = (int) $connection->lastInsertId();
+        $versionRowId = $this->insertWithRaceRetry($connection, $versionTable, $entityIdValue, $row);
 
         foreach ($collectionInserts as $entry) {
             $this->insertCollectionRows($entity, $entry['binding'], $entry['targetClass'], $versionTable, $versionRowId, $entityManager);
         }
+    }
+
+    /**
+     * Computes MAX(version)+1 and inserts the version row, retrying on the
+     * (entity_id, version) unique-index violation that two concurrent writers
+     * would race into. The unique index is the authority — we just rerun the
+     * read-then-insert until it succeeds.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function insertWithRaceRetry(
+        Connection $connection,
+        string $versionTable,
+        mixed $entityIdValue,
+        array $row,
+    ): int {
+        $attempts = 0;
+        $maxAttempts = 5;
+
+        while (true) {
+            $attempts++;
+
+            $row['version'] = $this->nextVersionFor($connection, $versionTable, $entityIdValue);
+
+            try {
+                $connection->insert($versionTable, $row);
+
+                return (int) $connection->lastInsertId();
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempts >= $maxAttempts) {
+                    throw $e;
+                }
+
+                $this->logger->warning(
+                    'Versionable: version race on {table}#{entity_id}, retrying (attempt {attempt}/{max}).',
+                    [
+                        'table' => $versionTable,
+                        'entity_id' => $entityIdValue,
+                        'attempt' => $attempts,
+                        'max' => $maxAttempts,
+                    ],
+                );
+            }
+        }
+    }
+
+    private function nextVersionFor(Connection $connection, string $versionTable, mixed $entityIdValue): int
+    {
+        $value = $connection->createQueryBuilder()
+            ->select('MAX(version)')
+            ->from($versionTable)
+            ->where('entity_id = :entity_id')
+            ->setParameter('entity_id', $entityIdValue)
+            ->fetchOne();
+
+        return $value === null || $value === false ? 1 : ((int) $value) + 1;
     }
 
     /**
@@ -371,6 +443,7 @@ final class VersionableListener
 
         $joinTable = $versionTable . '_' . $binding->property->getName();
         $captureVersion = $this->metadataFactory->isVersionable($targetClass);
+        $position = 0;
 
         foreach ($value as $element) {
             if (!is_object($element)) {
@@ -387,6 +460,7 @@ final class VersionableListener
 
             $row = [
                 'version_id' => $versionRowId,
+                'position' => $position++,
                 'target_id' => $idDbValue,
             ];
 
@@ -411,10 +485,12 @@ final class VersionableListener
             $entityManager->getClassMetadata($targetClass)->getTableName(),
         );
 
-        $value = $connection->fetchOne(
-            \sprintf('SELECT MAX(version) FROM %s WHERE entity_id = ?', $targetVersionTable),
-            [$targetIdValue],
-        );
+        $value = $connection->createQueryBuilder()
+            ->select('MAX(version)')
+            ->from($targetVersionTable)
+            ->where('entity_id = :entity_id')
+            ->setParameter('entity_id', $targetIdValue)
+            ->fetchOne();
 
         return $value === null || $value === false ? null : (int) $value;
     }

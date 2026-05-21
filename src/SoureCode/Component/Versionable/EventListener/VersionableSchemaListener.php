@@ -33,8 +33,25 @@ final class VersionableSchemaListener
                 continue;
             }
 
-            $this->createVersionTable($schema, $classMetadata, $metadata->bindings, $metadataFactoryDoctrine);
+            // STI: every child class of a single-table-inheritance root shares
+            // the root's database table, so they must also share one version
+            // table — keyed on the root, with a discriminator column for
+            // re-hydrating the right subclass on restore.
+            $rootMetadata = $this->resolveRootMetadata($classMetadata, $metadataFactoryDoctrine);
+
+            $this->createVersionTable($schema, $rootMetadata, $metadata->bindings, $metadataFactoryDoctrine);
         }
+    }
+
+    private function resolveRootMetadata(ClassMetadata $classMetadata, ClassMetadataFactory $factory): ClassMetadata
+    {
+        if ($classMetadata->isInheritanceTypeNone()) {
+            return $classMetadata;
+        }
+
+        $root = $classMetadata->rootEntityName;
+
+        return $root === $classMetadata->getName() ? $classMetadata : $factory->getMetadataFor($root);
     }
 
     /**
@@ -50,36 +67,51 @@ final class VersionableSchemaListener
         $versionTableName = VersionableMetadataFactory::versionTableName($sourceTable);
 
         if ($schema->hasTable($versionTableName)) {
-            return;
+            $versionTable = $schema->getTable($versionTableName);
+        } else {
+            $versionTable = $schema->createTable($versionTableName);
+
+            $versionTable->addColumn('id', Types::INTEGER, ['autoincrement' => true, 'notnull' => true]);
+            $versionTable->setPrimaryKey(['id']);
+
+            $sourceIdField = $sourceMetadata->getSingleIdentifierFieldName();
+            $sourceIdMapping = $sourceMetadata->getFieldMapping($sourceIdField);
+
+            $versionTable->addColumn('entity_id', $sourceIdMapping->type, ['notnull' => true]);
+            $versionTable->addForeignKeyConstraint(
+                $sourceTable,
+                ['entity_id'],
+                [$sourceMetadata->getColumnName($sourceIdField)],
+                ['onDelete' => 'CASCADE'],
+            );
+            $versionTable->addIndex(['entity_id']);
+
+            $versionTable->addColumn('version', Types::INTEGER, ['notnull' => true]);
+            $versionTable->addUniqueIndex(['entity_id', 'version']);
+
+            $versionTable->addColumn('created_at', Types::DATETIMETZ_IMMUTABLE, ['notnull' => true]);
+
+            if ($sourceMetadata->discriminatorColumn !== null) {
+                $discriminator = $sourceMetadata->discriminatorColumn;
+                $versionTable->addColumn(
+                    $discriminator['name'],
+                    $discriminator['type'] ?? 'string',
+                    ['notnull' => false, 'length' => $discriminator['length'] ?? 255],
+                );
+            }
         }
-
-        $versionTable = $schema->createTable($versionTableName);
-
-        $versionTable->addColumn('id', Types::INTEGER, ['autoincrement' => true, 'notnull' => true]);
-        $versionTable->setPrimaryKey(['id']);
-
-        $sourceIdField = $sourceMetadata->getSingleIdentifierFieldName();
-        $sourceIdMapping = $sourceMetadata->getFieldMapping($sourceIdField);
-
-        $versionTable->addColumn('entity_id', $sourceIdMapping->type, ['notnull' => true]);
-        $versionTable->addForeignKeyConstraint(
-            $sourceTable,
-            ['entity_id'],
-            [$sourceMetadata->getColumnName($sourceIdField)],
-            ['onDelete' => 'CASCADE'],
-        );
-        $versionTable->addIndex(['entity_id']);
-
-        $versionTable->addColumn('version', Types::INTEGER, ['notnull' => true]);
-        $versionTable->addUniqueIndex(['entity_id', 'version']);
-
-        $versionTable->addColumn('created_at', Types::DATETIMETZ_IMMUTABLE, ['notnull' => true]);
 
         foreach ($bindings as $binding) {
             $fieldName = $binding->property->getName();
 
             if ($sourceMetadata->hasField($fieldName)) {
                 $this->addScalarFieldColumn($versionTable, $sourceMetadata, $fieldName);
+
+                continue;
+            }
+
+            if (isset($sourceMetadata->embeddedClasses[$fieldName])) {
+                $this->addEmbeddedColumns($versionTable, $sourceMetadata, $fieldName);
 
                 continue;
             }
@@ -100,10 +132,33 @@ final class VersionableSchemaListener
         }
     }
 
+    /**
+     * Embeddables flatten into the parent table; we mirror that on the
+     * version table by walking the embedded field mappings.
+     */
+    private function addEmbeddedColumns(Table $table, ClassMetadata $source, string $embeddedFieldName): void
+    {
+        foreach ($source->getFieldNames() as $fieldName) {
+            if (!str_starts_with($fieldName, $embeddedFieldName . '.')) {
+                continue;
+            }
+
+            if ($table->hasColumn($source->getColumnName($fieldName))) {
+                continue;
+            }
+
+            $this->addScalarFieldColumn($table, $source, $fieldName);
+        }
+    }
+
     private function addScalarFieldColumn(Table $table, ClassMetadata $source, string $fieldName): void
     {
         $sourceField = $source->getFieldMapping($fieldName);
         $columnName = $source->getColumnName($fieldName);
+
+        if ($table->hasColumn($columnName)) {
+            return;
+        }
 
         $options = ['notnull' => !($sourceField->nullable ?? false)];
 
@@ -164,8 +219,9 @@ final class VersionableSchemaListener
 
         $joinTable = $schema->createTable($joinTableName);
         $joinTable->addColumn('version_id', Types::INTEGER, ['notnull' => true]);
+        $joinTable->addColumn('position', Types::INTEGER, ['notnull' => true]);
         $joinTable->addColumn('target_id', $targetIdType, ['notnull' => true]);
-        $joinTable->setPrimaryKey(['version_id', 'target_id']);
+        $joinTable->setPrimaryKey(['version_id', 'position']);
         $joinTable->addForeignKeyConstraint($versionTableName, ['version_id'], ['id'], ['onDelete' => 'CASCADE']);
         $joinTable->addIndex(['target_id']);
 
