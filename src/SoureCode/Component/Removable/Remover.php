@@ -59,6 +59,60 @@ final class Remover implements RemoverInterface
         }
     }
 
+    public function batchRemove(iterable $entities, bool $soft = true, bool $flush = true): int
+    {
+        $count = 0;
+
+        foreach ($entities as $entity) {
+            if ($soft) {
+                $this->fillDeletionMarkers($entity);
+            } else {
+                $this->entityManager->remove($entity);
+            }
+            $count++;
+        }
+
+        if ($count > 0 && $flush) {
+            $this->entityManager->flush();
+        }
+
+        return $count;
+    }
+
+    public function purge(string $entityClass, \DateTimeInterface $olderThan, bool $flush = true): int
+    {
+        $deletedAtBindings = $this->timestampableMetadata
+            ->getMetadataFor($entityClass)
+            ->getDeletedBindings();
+
+        if ($deletedAtBindings === []) {
+            throw new \LogicException(\sprintf(
+                'Entity "%s" has no #[DeletedAt] marker — cannot purge.',
+                $entityClass,
+            ));
+        }
+
+        $classMetadata = $this->entityManager->getClassMetadata($entityClass);
+        $deletedFieldName = $deletedAtBindings[0]->getProperty()->getName();
+        $deletedColumn = $classMetadata->hasField($deletedFieldName)
+            ? $classMetadata->getColumnName($deletedFieldName)
+            : $deletedFieldName;
+
+        $queryBuilder = $this->entityManager->getConnection()->createQueryBuilder()
+            ->delete($classMetadata->getTableName())
+            ->where(\sprintf('%s IS NOT NULL', $deletedColumn))
+            ->andWhere(\sprintf('%s < :cutoff', $deletedColumn))
+            ->setParameter('cutoff', \DateTimeImmutable::createFromInterface($olderThan)->format('Y-m-d H:i:s'));
+
+        $affected = (int) $queryBuilder->executeStatement();
+
+        if ($flush) {
+            $this->entityManager->flush();
+        }
+
+        return $affected;
+    }
+
     /**
      * @template T of object
      *
