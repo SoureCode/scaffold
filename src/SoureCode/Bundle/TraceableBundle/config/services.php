@@ -27,6 +27,7 @@ return static function (ContainerConfigurator $container): void {
             service(TraceContextHolder::class),
             'X-Request-Id',
             'X-Request-Id',
+            'never',
             service(LoggerInterface::class)->nullOnInvalid(),
         ])
         ->tag('kernel.event_listener', ['event' => KernelEvents::REQUEST, 'method' => 'onRequest', 'priority' => 1024])

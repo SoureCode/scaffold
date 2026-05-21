@@ -25,7 +25,7 @@ final class PropagationTest extends TestCase
         $factory = new TraceContextFactory();
         $holder = new TraceContextHolder();
 
-        $httpListener = new HttpTraceListener($factory, $holder, 'X-Request-Id', 'X-Request-Id');
+        $httpListener = new HttpTraceListener($factory, $holder, 'X-Request-Id', 'X-Request-Id', 'always');
         $middleware = new TraceContextMiddleware($factory, $holder);
 
         $incoming = new Ulid();

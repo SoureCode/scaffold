@@ -40,6 +40,11 @@ final class ConsoleTraceListener
             }
         }
 
-        $this->holder->setCurrent($this->factory->create($incoming));
+        $command = $event->getCommand();
+
+        $this->holder->setCurrent($this->factory->create($incoming, [
+            'source' => 'console',
+            'command' => $command !== null ? $command->getName() : null,
+        ]));
     }
 }

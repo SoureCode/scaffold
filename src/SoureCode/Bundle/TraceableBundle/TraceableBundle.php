@@ -24,6 +24,11 @@ final class TraceableBundle extends AbstractBundle
                         ->booleanNode('enabled')->defaultTrue()->end()
                         ->scalarNode('request_header')->defaultValue('X-Request-Id')->end()
                         ->scalarNode('response_header')->defaultValue('X-Request-Id')->end()
+                        ->enumNode('accept_incoming')
+                            ->values(['never', 'trusted', 'always'])
+                            ->defaultValue('never')
+                            ->info('When to honour an incoming request_header. "never" generates a fresh id, "trusted" honours it only from trusted proxies, "always" trusts every caller.')
+                        ->end()
                     ->end()
                 ->end()
                 ->arrayNode('console')
@@ -44,7 +49,7 @@ final class TraceableBundle extends AbstractBundle
 
     /**
      * @param array{
-     *     http:      array{enabled: bool, request_header: ?string, response_header: ?string},
+     *     http:      array{enabled: bool, request_header: ?string, response_header: ?string, accept_incoming: 'never'|'trusted'|'always'},
      *     console:   array{enabled: bool, env_var: ?string},
      *     messenger: array{enabled: bool},
      * } $config
@@ -58,7 +63,8 @@ final class TraceableBundle extends AbstractBundle
         } else {
             $builder->getDefinition(HttpTraceListener::class)
                 ->setArgument('$requestHeader', $config['http']['request_header'])
-                ->setArgument('$responseHeader', $config['http']['response_header']);
+                ->setArgument('$responseHeader', $config['http']['response_header'])
+                ->setArgument('$acceptIncoming', $config['http']['accept_incoming']);
         }
 
         if (!$config['console']['enabled']) {

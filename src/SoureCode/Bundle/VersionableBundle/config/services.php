@@ -7,6 +7,8 @@ use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
+use SoureCode\Bundle\VersionableBundle\Security\Voter\VersionableVoter;
+use SoureCode\Component\Versionable\Messenger\PruneVersionableHistoryHandler;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Versioner;
 use SoureCode\Component\Versionable\VersionerInterface;
@@ -40,4 +42,14 @@ return static function (ContainerConfigurator $container): void {
         ]);
 
     $services->alias(VersionerInterface::class, Versioner::class)->public();
+
+    $services->set(PruneVersionableHistoryHandler::class)
+        ->args([
+            service(VersionerInterface::class),
+            service(LoggerInterface::class)->nullOnInvalid(),
+        ])
+        ->tag('messenger.message_handler');
+
+    $services->set(VersionableVoter::class)
+        ->tag('security.voter');
 };

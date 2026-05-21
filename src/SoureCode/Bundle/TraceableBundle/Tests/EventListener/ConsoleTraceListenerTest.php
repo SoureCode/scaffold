@@ -69,6 +69,19 @@ final class ConsoleTraceListenerTest extends TestCase
         self::assertNotNull($context);
     }
 
+    public function testStoresCommandNameOnContext(): void
+    {
+        $holder = new TraceContextHolder();
+        $listener = new ConsoleTraceListener(new TraceContextFactory(), $holder);
+
+        $listener->onCommand($this->makeEvent());
+
+        $context = $holder->getCurrent();
+        self::assertNotNull($context);
+        self::assertSame('trace:test', $context->getAttribute('command'));
+        self::assertSame('console', $context->getAttribute('source'));
+    }
+
     public function testNullEnvVarConfigSkipsLookup(): void
     {
         putenv('TRACE_ID=' . (new Ulid())->toBase32());

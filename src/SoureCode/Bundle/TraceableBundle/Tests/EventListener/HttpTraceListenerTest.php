@@ -20,11 +20,11 @@ use Symfony\Component\Uid\Ulid;
 
 final class HttpTraceListenerTest extends TestCase
 {
-    public function testAdoptsValidIncomingHeader(): void
+    public function testAdoptsValidIncomingHeaderWhenAcceptingAlways(): void
     {
         $incoming = new Ulid();
         $holder = new TraceContextHolder();
-        $listener = new HttpTraceListener(new TraceContextFactory(), $holder, 'X-Request-Id', 'X-Request-Id');
+        $listener = new HttpTraceListener(new TraceContextFactory(), $holder, 'X-Request-Id', 'X-Request-Id', 'always');
 
         $listener->onRequest($this->makeRequestEvent((string) $incoming));
 
@@ -32,11 +32,23 @@ final class HttpTraceListenerTest extends TestCase
         self::assertTrue($incoming->equals($holder->getCurrent()->getId()));
     }
 
+    public function testIgnoresIncomingHeaderByDefault(): void
+    {
+        $incoming = new Ulid();
+        $holder = new TraceContextHolder();
+        $listener = new HttpTraceListener(new TraceContextFactory(), $holder, 'X-Request-Id', 'X-Request-Id');
+
+        $listener->onRequest($this->makeRequestEvent((string) $incoming));
+
+        self::assertNotNull($holder->getCurrent(), 'Listener still creates a fresh context');
+        self::assertFalse($incoming->equals($holder->getCurrent()->getId()), 'Default config must NOT trust external header');
+    }
+
     public function testInvalidIncomingHeaderIsLoggedAndDiscarded(): void
     {
         $logger = $this->captureLogger();
         $holder = new TraceContextHolder();
-        $listener = new HttpTraceListener(new TraceContextFactory(), $holder, 'X-Request-Id', 'X-Request-Id', $logger);
+        $listener = new HttpTraceListener(new TraceContextFactory(), $holder, 'X-Request-Id', 'X-Request-Id', 'always', $logger);
 
         $listener->onRequest($this->makeRequestEvent('not-a-ulid'));
 

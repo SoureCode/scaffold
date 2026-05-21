@@ -14,11 +14,18 @@ use Symfony\Component\Uid\Ulid;
 
 final class HttpTraceListener
 {
+    /**
+     * @param 'never'|'trusted'|'always' $acceptIncoming
+     *   - never: ignore the request header even if it's present
+     *   - trusted: honour the header only when the request comes from a trusted proxy
+     *   - always: honour the header regardless (only safe behind a proxy that strips it)
+     */
     public function __construct(
         private readonly TraceContextFactory $factory,
         private readonly TraceContextHolder $holder,
         private readonly ?string $requestHeader,
         private readonly ?string $responseHeader,
+        private readonly string $acceptIncoming = 'never',
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -31,22 +38,28 @@ final class HttpTraceListener
 
         $incoming = null;
 
-        if ($this->requestHeader !== null) {
-            $raw = $event->getRequest()->headers->get($this->requestHeader);
+        if ($this->requestHeader !== null && $this->acceptIncoming !== 'never') {
+            $request = $event->getRequest();
 
-            if ($raw !== null) {
-                if (Ulid::isValid($raw)) {
-                    $incoming = Ulid::fromString($raw);
-                } else {
-                    $this->logger->warning(
-                        'Discarded incoming trace id from {header}: value "{value}" is not a valid Ulid.',
-                        ['header' => $this->requestHeader, 'value' => $raw],
-                    );
+            if ($this->acceptIncoming === 'always' || $request->isFromTrustedProxy()) {
+                $raw = $request->headers->get($this->requestHeader);
+
+                if ($raw !== null) {
+                    if (Ulid::isValid($raw)) {
+                        $incoming = Ulid::fromString($raw);
+                    } else {
+                        $this->logger->warning(
+                            'Discarded incoming trace id from {header}: value "{value}" is not a valid Ulid.',
+                            ['header' => $this->requestHeader, 'value' => $raw],
+                        );
+                    }
                 }
             }
         }
 
-        $this->holder->setCurrent($this->factory->create($incoming));
+        $this->holder->setCurrent($this->factory->create($incoming, [
+            'source' => 'http',
+        ]));
     }
 
     public function onResponse(ResponseEvent $event): void
