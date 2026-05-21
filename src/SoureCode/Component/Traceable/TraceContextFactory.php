@@ -8,8 +8,11 @@ use Symfony\Component\Uid\Ulid;
 
 final class TraceContextFactory
 {
-    public function create(?Ulid $id = null): TraceContext
+    /**
+     * @param array<string, bool|float|int|string|null> $attributes
+     */
+    public function create(?Ulid $id = null, array $attributes = []): TraceContext
     {
-        return new TraceContext($id ?? new Ulid());
+        return new TraceContext($id ?? new Ulid(), $attributes);
     }
 }
