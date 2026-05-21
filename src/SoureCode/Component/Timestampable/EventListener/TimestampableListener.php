@@ -70,6 +70,10 @@ final class TimestampableListener extends AbstractFlushListener
             return;
         }
 
+        if (array_key_exists('updatedAt', $unitOfWork->getEntityChangeSet($entity))) {
+            return;
+        }
+
         $entity->setUpdatedAt($this->timestampFactory->now());
         $unitOfWork->recomputeSingleEntityChangeSet(
             $entityManager->getClassMetadata($entity::class),
