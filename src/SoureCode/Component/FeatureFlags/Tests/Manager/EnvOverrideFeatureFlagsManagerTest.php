@@ -63,6 +63,36 @@ final class EnvOverrideFeatureFlagsManagerTest extends TestCase
         self::assertFalse($inner->has('checkout.v2'));
     }
 
+    public function testDisabledDecoratorSkipsEnvAndDelegatesEveryReadToInner(): void
+    {
+        $inner = new InMemoryFeatureFlagsManager(['billing.beta-rates' => true]);
+        $manager = new EnvOverrideFeatureFlagsManager($inner, 'FEATURE_', enabled: false);
+
+        putenv(self::ENV_NAME . '=0');
+
+        self::assertTrue(
+            $manager->isEnabled('billing.beta-rates'),
+            'when env_override.enabled=false the decorator must ignore env vars and return the inner value',
+        );
+    }
+
+    public function testEnabledDecoratorReadsBothSources(): void
+    {
+        $inner = new InMemoryFeatureFlagsManager(['only.in.doctrine' => true]);
+        $manager = new EnvOverrideFeatureFlagsManager($inner, 'FEATURE_', enabled: true);
+
+        // Doctrine-only flag falls through cleanly.
+        self::assertTrue($manager->isEnabled('only.in.doctrine'));
+
+        // Env-only flag is honoured even though Doctrine has no row for it.
+        putenv('FEATURE_ONLY_IN_ENV=1');
+        try {
+            self::assertTrue($manager->isEnabled('only.in.env'));
+        } finally {
+            putenv('FEATURE_ONLY_IN_ENV');
+        }
+    }
+
     /**
      * @return iterable<string, array{0: string}>
      */

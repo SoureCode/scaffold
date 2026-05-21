@@ -28,11 +28,25 @@ final class FeatureFlagsBundle extends AbstractBundle
                     ->cannotBeEmpty()
                     ->info('Doctrine table name for the configured FeatureFlag class.')
                 ->end()
+                ->arrayNode('env_override')
+                    ->addDefaultsIfNotSet()
+                    ->info('Whether environment variables can short-circuit a flag lookup. The decorator always sits in front of the Doctrine manager; when "enabled" is false, env vars are simply ignored and every read falls through to Doctrine.')
+                    ->children()
+                        ->booleanNode('enabled')
+                            ->defaultFalse()
+                            ->info('Consult env vars before Doctrine when reading. When false, Doctrine is the sole read source. Writes always go to Doctrine either way.')
+                        ->end()
+                        ->scalarNode('prefix')
+                            ->defaultValue('FEATURE_')
+                            ->info('Prefix prepended to the uppercased flag name when looking up the env var.')
+                        ->end()
+                    ->end()
+                ->end()
             ->end();
     }
 
     /**
-     * @param array{entity_class: string, table_name: string} $config
+     * @param array{entity_class: string, table_name: string, env_override: array{enabled: bool, prefix: string}} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
@@ -46,6 +60,8 @@ final class FeatureFlagsBundle extends AbstractBundle
 
         $builder->setParameter('sourecode.feature_flags.entity_class', $config['entity_class']);
         $builder->setParameter('sourecode.feature_flags.table_name', $config['table_name']);
+        $builder->setParameter('sourecode.feature_flags.env_override.enabled', $config['env_override']['enabled']);
+        $builder->setParameter('sourecode.feature_flags.env_override.prefix', $config['env_override']['prefix']);
 
         $container->import(__DIR__ . '/config/services.php');
     }

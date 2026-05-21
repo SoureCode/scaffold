@@ -40,13 +40,18 @@ return static function (ContainerConfigurator $container): void {
             service(EventDispatcherInterface::class)->nullOnInvalid(),
         ]);
 
+    // EnvOverrideFeatureFlagsManager always wraps the Doctrine manager so
+    // both stores remain reachable: env vars short-circuit reads when
+    // enabled and set, otherwise the call falls through to Doctrine. Writes
+    // (enable/disable/remove) pass through to Doctrine in either case.
     $services->set(EnvOverrideFeatureFlagsManager::class)
         ->args([
             service(DoctrineFeatureFlagsManager::class),
             '%sourecode.feature_flags.env_override.prefix%',
+            '%sourecode.feature_flags.env_override.enabled%',
         ]);
 
-    $services->alias(FeatureFlagsManagerInterface::class, DoctrineFeatureFlagsManager::class);
+    $services->alias(FeatureFlagsManagerInterface::class, EnvOverrideFeatureFlagsManager::class);
 
     $services->set(FeatureFlagsExtension::class)
         ->args([service(FeatureFlagsManagerInterface::class)])

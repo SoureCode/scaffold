@@ -24,6 +24,7 @@ final class EnvOverrideFeatureFlagsManager extends AbstractFeatureFlagsManager
     public function __construct(
         private readonly FeatureFlagsManagerInterface $inner,
         private readonly string $prefix = 'FEATURE_',
+        private readonly bool $enabled = true,
     ) {
     }
 
@@ -31,10 +32,12 @@ final class EnvOverrideFeatureFlagsManager extends AbstractFeatureFlagsManager
     {
         self::validateName($name);
 
-        $override = $this->resolveOverride($name);
+        if ($this->enabled) {
+            $override = $this->resolveOverride($name);
 
-        if ($override !== null) {
-            return $override;
+            if ($override !== null) {
+                return $override;
+            }
         }
 
         return $this->inner->isEnabled($name);
