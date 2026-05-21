@@ -130,19 +130,32 @@ abstract class AbstractFlushListener
         }
 
         $touched = false;
+        $changeSet = $unitOfWork->getEntityChangeSet($entity);
 
         foreach ($metadata->getUpdateBindings() as $binding) {
             $property = $binding->getProperty();
+
+            if (array_key_exists($property->getName(), $changeSet)) {
+                continue;
+            }
+
             $property->setValue($entity, $this->resolveValue($property));
             $touched = true;
         }
 
         foreach ($metadata->getChangeBindings() as $binding) {
-            if ($this->changeSetMatcher->matches($binding, $entity, $unitOfWork)) {
-                $property = $binding->getProperty();
-                $property->setValue($entity, $this->resolveValue($property));
-                $touched = true;
+            if (!$this->changeSetMatcher->matches($binding, $entity, $unitOfWork)) {
+                continue;
             }
+
+            $property = $binding->getProperty();
+
+            if (array_key_exists($property->getName(), $changeSet)) {
+                continue;
+            }
+
+            $property->setValue($entity, $this->resolveValue($property));
+            $touched = true;
         }
 
         if ($touched) {
