@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\RecentAuthenticationBundle\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SoureCode\Bundle\RecentAuthenticationBundle\Security\RecentAuthentication;
 use Symfony\Component\Clock\MockClock;
@@ -65,6 +66,40 @@ final class RecentAuthenticationTest extends TestCase
 
         self::assertSame('/settings/change-password', $service->takeReturnPath());
         self::assertNull($service->takeReturnPath());
+    }
+
+    #[DataProvider('unsafeReturnPaths')]
+    public function testSetReturnPathRejectsUnsafePath(string $path): void
+    {
+        [$service] = $this->makeServiceWithSession();
+
+        $service->setReturnPath($path);
+
+        self::assertNull($service->takeReturnPath());
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function unsafeReturnPaths(): iterable
+    {
+        yield 'protocol relative' => ['//attacker.example/path'];
+        yield 'backslash relative' => ['/\\attacker.example/path'];
+        yield 'absolute http' => ['http://attacker.example/path'];
+        yield 'absolute https' => ['https://attacker.example/path'];
+        yield 'empty' => [''];
+        yield 'no leading slash' => ['settings/profile'];
+    }
+
+    public function testIsActivePerAttributeTtlOverridesDefault(): void
+    {
+        [$service, $clock] = $this->makeServiceWithSession();
+
+        $service->mark();
+        $clock->modify('+120 seconds');
+
+        self::assertFalse($service->isActive(60), 'tight ttl must reject when older than override');
+        self::assertTrue($service->isActive(), 'default ttl is still in window');
     }
 
     /**

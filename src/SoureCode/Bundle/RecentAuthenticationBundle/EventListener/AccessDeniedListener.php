@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\RecentAuthenticationBundle\EventListener;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
+use SoureCode\Bundle\RecentAuthenticationBundle\Event\RecentAuthRequiredEvent;
 use SoureCode\Bundle\RecentAuthenticationBundle\Security\RecentAuthentication;
+use SoureCode\Bundle\RecentAuthenticationBundle\Security\RedirectStrategyInterface;
 use SoureCode\Bundle\RecentAuthenticationBundle\Security\Voter\RecentAuthenticationVoter;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 final class AccessDeniedListener
 {
     public function __construct(
         private readonly RecentAuthentication $recentAuthentication,
-        private readonly UrlGeneratorInterface $urlGenerator,
-        private readonly string $loginRoute,
+        private readonly RedirectStrategyInterface $redirectStrategy,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {}
 
     public function __invoke(ExceptionEvent $event): void
@@ -32,10 +33,15 @@ final class AccessDeniedListener
         }
 
         $request = $event->getRequest();
-        $this->recentAuthentication->setReturnPath($request->getRequestUri());
+        $returnPath = null;
 
-        $event->setResponse(new RedirectResponse(
-            $this->urlGenerator->generate($this->loginRoute),
-        ));
+        if ($request->isMethodSafe()) {
+            $returnPath = $request->getRequestUri();
+            $this->recentAuthentication->setReturnPath($returnPath);
+        }
+
+        $this->eventDispatcher?->dispatch(new RecentAuthRequiredEvent($request, $returnPath));
+
+        $event->setResponse($this->redirectStrategy->redirectForReauth($request, $returnPath));
     }
 }

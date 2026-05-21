@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\RecentAuthenticationBundle;
 
-use SoureCode\Bundle\RecentAuthenticationBundle\EventListener\AccessDeniedListener;
-use SoureCode\Bundle\RecentAuthenticationBundle\Security\RecentAuthentication;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -25,22 +23,24 @@ final class RecentAuthenticationBundle extends AbstractBundle
                 ->scalarNode('login_route')
                     ->defaultValue('app_login')
                     ->cannotBeEmpty()
-                    ->info('Route name the AccessDeniedListener redirects to when IS_AUTHENTICATED_RECENTLY is required but not active.')
+                    ->info('Route name the default RouteRedirectStrategy redirects to when IS_AUTHENTICATED_RECENTLY is required but not active.')
+                ->end()
+                ->booleanNode('require_full_authentication')
+                    ->defaultTrue()
+                    ->info('When true, remember-me-only tokens never count as recently-authenticated even within the TTL.')
                 ->end()
             ->end();
     }
 
     /**
-     * @param array{ttl: int, login_route: string} $config
+     * @param array{ttl: int, login_route: string, require_full_authentication: bool} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
+        $builder->setParameter('sourecode.recent_authentication.ttl', $config['ttl']);
+        $builder->setParameter('sourecode.recent_authentication.login_route', $config['login_route']);
+        $builder->setParameter('sourecode.recent_authentication.require_full_authentication', $config['require_full_authentication']);
+
         $container->import(__DIR__ . '/config/services.php');
-
-        $builder->getDefinition(RecentAuthentication::class)
-            ->replaceArgument(2, $config['ttl']);
-
-        $builder->getDefinition(AccessDeniedListener::class)
-            ->replaceArgument(2, $config['login_route']);
     }
 }

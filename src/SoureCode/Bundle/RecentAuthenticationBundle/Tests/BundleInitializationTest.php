@@ -10,6 +10,7 @@ use SoureCode\Bundle\RecentAuthenticationBundle\EventListener\AccessDeniedListen
 use SoureCode\Bundle\RecentAuthenticationBundle\EventListener\LoginSuccessListener;
 use SoureCode\Bundle\RecentAuthenticationBundle\RecentAuthenticationBundle;
 use SoureCode\Bundle\RecentAuthenticationBundle\Security\RecentAuthentication;
+use SoureCode\Bundle\RecentAuthenticationBundle\Security\RouteRedirectStrategy;
 use SoureCode\Bundle\RecentAuthenticationBundle\Security\Voter\RecentAuthenticationVoter;
 use SoureCode\Bundle\RecentAuthenticationBundle\Twig\RecentAuthenticationExtension;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -63,18 +64,18 @@ final class BundleInitializationTest extends AbstractBundleTestCase
         self::assertSame(60, $property->getValue($service));
     }
 
-    public function testLoginRouteConfigPropagatesToListener(): void
+    public function testLoginRouteConfigPropagatesToRedirectStrategy(): void
     {
         self::bootKernel(['config' => static function (TestKernel $kernel): void {
             $kernel->addTestConfig(__DIR__ . '/config/custom_login_route.php');
         }]);
 
         $container = self::getContainer();
-        $listener = $container->get(AccessDeniedListener::class);
+        $strategy = $container->get(RouteRedirectStrategy::class);
 
-        $reflection = new \ReflectionClass($listener);
+        $reflection = new \ReflectionClass($strategy);
         $property = $reflection->getProperty('loginRoute');
 
-        self::assertSame('my_login', $property->getValue($listener));
+        self::assertSame('my_login', $property->getValue($strategy));
     }
 }
