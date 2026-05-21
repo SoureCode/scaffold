@@ -58,4 +58,31 @@ final class FunctionalTest extends AbstractBundleTestCase
 
         self::assertNotNull($note->getUpdatedAt(), 'onFlush listener must stamp updatedAt on update');
     }
+
+    public function testListenerPreservesUserSetUpdatedAt(): void
+    {
+        self::bootKernel();
+
+        $entityManager = self::getContainer()->get('doctrine.orm.default_entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
+
+        (new SchemaTool($entityManager))->createSchema([
+            $entityManager->getClassMetadata(Note::class),
+        ]);
+
+        $note = new Note('first');
+        $entityManager->persist($note);
+        $entityManager->flush();
+
+        $userChosen = new \DateTimeImmutable('2001-02-03T04:05:06+00:00');
+        $note->body = 'changed';
+        $note->setUpdatedAt($userChosen);
+        $entityManager->flush();
+
+        self::assertEquals(
+            $userChosen,
+            $note->getUpdatedAt(),
+            'listener must NOT overwrite an UpdatedAt value the user set explicitly',
+        );
+    }
 }
