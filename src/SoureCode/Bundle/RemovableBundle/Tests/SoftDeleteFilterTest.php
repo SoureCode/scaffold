@@ -14,12 +14,12 @@ use SoureCode\Bundle\DoctrineExtensionsBundle\Testing\AbstractBundleTestCase;
 use SoureCode\Bundle\RemovableBundle\RemovableBundle;
 use SoureCode\Bundle\RemovableBundle\Tests\Fixtures\Note;
 use SoureCode\Bundle\TimestampableBundle\TimestampableBundle;
-use SoureCode\Component\Removable\Remover;
+use SoureCode\Component\Removable\Doctrine\SoftDeleteFilter;
 use SoureCode\Component\Removable\RemoverInterface;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\HttpKernel\KernelInterface;
 
-final class FunctionalTest extends AbstractBundleTestCase
+final class SoftDeleteFilterTest extends AbstractBundleTestCase
 {
     protected static function getKernelClass(): string
     {
@@ -37,48 +37,13 @@ final class FunctionalTest extends AbstractBundleTestCase
         $kernel->addTestBundle(AuthorableBundle::class);
         $kernel->addTestBundle(RemovableBundle::class);
         $kernel->addTestConfig(__DIR__ . '/config/functional.php');
+        $kernel->addTestConfig(__DIR__ . '/config/soft_delete_filter.php');
         $kernel->handleOptions($options);
 
         return $kernel;
     }
 
-    public function testWiredRemoverSoftDeletesAndRestoresThroughContainer(): void
-    {
-        self::bootKernel();
-        $container = self::getContainer();
-
-        $entityManager = $container->get('doctrine.orm.default_entity_manager');
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-
-        (new SchemaTool($entityManager))->createSchema([
-            $entityManager->getClassMetadata(Note::class),
-        ]);
-
-        $remover = $container->get(RemoverInterface::class);
-
-        $note = new Note('hello');
-        $entityManager->persist($note);
-        $entityManager->flush();
-
-        $remover->remove($note);
-        self::assertNotNull($note->getDeletedAt(), 'remove() sets deletedAt');
-
-        $remover->restore($note);
-        self::assertNull($note->getDeletedAt(), 'restore() clears deletedAt');
-    }
-
-    public function testRemoverInterfaceAliasResolvesToConcreteRemover(): void
-    {
-        self::bootKernel();
-        $container = self::getContainer();
-
-        $byInterface = $container->get(RemoverInterface::class);
-        $byClass = $container->get(Remover::class);
-
-        self::assertSame($byClass, $byInterface);
-    }
-
-    public function testBatchRemoveSoftDeletesEveryEntity(): void
+    public function testFilterHidesSoftDeletedRowsFromFindAll(): void
     {
         self::bootKernel();
         $container = self::getContainer();
@@ -89,52 +54,51 @@ final class FunctionalTest extends AbstractBundleTestCase
             $entityManager->getClassMetadata(Note::class),
         ]);
 
-        $first = new Note('a');
-        $second = new Note('b');
-        $entityManager->persist($first);
-        $entityManager->persist($second);
+        $alive = new Note('alive');
+        $doomed = new Note('doomed');
+        $entityManager->persist($alive);
+        $entityManager->persist($doomed);
         $entityManager->flush();
 
-        $remover = $container->get(RemoverInterface::class);
-        $count = $remover->batchRemove([$first, $second]);
-
-        self::assertSame(2, $count);
-        self::assertNotNull($first->getDeletedAt());
-        self::assertNotNull($second->getDeletedAt());
-    }
-
-    public function testPurgeHardDeletesSoftDeletedRowsOlderThanCutoff(): void
-    {
-        self::bootKernel();
-        $container = self::getContainer();
-        $entityManager = $container->get('doctrine.orm.default_entity_manager');
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-
-        (new SchemaTool($entityManager))->createSchema([
-            $entityManager->getClassMetadata(Note::class),
-        ]);
-
-        $remover = $container->get(RemoverInterface::class);
-
-        $old = new Note('old');
-        $entityManager->persist($old);
-        $entityManager->flush();
-        $remover->remove($old);
-        $old->setDeletedAt(new \DateTimeImmutable('2020-01-01 00:00:00'));
-        $entityManager->flush();
-
-        $young = new Note('young');
-        $entityManager->persist($young);
-        $entityManager->flush();
-        $remover->remove($young);
-
-        $purged = $remover->purge(Note::class, new \DateTimeImmutable('2024-01-01 00:00:00'));
-
-        self::assertSame(1, $purged);
+        $container->get(RemoverInterface::class)->remove($doomed);
         $entityManager->clear();
 
-        $repo = $entityManager->getRepository(Note::class);
-        self::assertNull($repo->find($old->id));
-        self::assertNotNull($repo->find($young->id));
+        $rows = $entityManager->getRepository(Note::class)->findAll();
+
+        self::assertCount(1, $rows);
+        self::assertSame('alive', $rows[0]->body);
+    }
+
+    public function testFilterCanBeDisabledPerRequest(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $entityManager = $container->get('doctrine.orm.default_entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
+
+        (new SchemaTool($entityManager))->createSchema([
+            $entityManager->getClassMetadata(Note::class),
+        ]);
+
+        $note = new Note('disabled-filter-target');
+        $entityManager->persist($note);
+        $entityManager->flush();
+        $container->get(RemoverInterface::class)->remove($note);
+        $entityManager->clear();
+
+        $entityManager->getFilters()->disable('soft_delete');
+
+        $rows = $entityManager->getRepository(Note::class)->findAll();
+        self::assertCount(1, $rows);
+    }
+
+    public function testFilterClassIsRegistered(): void
+    {
+        self::bootKernel();
+        $entityManager = self::getContainer()->get('doctrine.orm.default_entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
+
+        $filter = $entityManager->getFilters()->getFilter('soft_delete');
+        self::assertInstanceOf(SoftDeleteFilter::class, $filter);
     }
 }
