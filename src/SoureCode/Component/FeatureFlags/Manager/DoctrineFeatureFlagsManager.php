@@ -6,8 +6,12 @@ namespace SoureCode\Component\FeatureFlags\Manager;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use SoureCode\Component\FeatureFlags\Event\FeatureFlagRemovedEvent;
+use SoureCode\Component\FeatureFlags\Event\FeatureFlagToggledEvent;
 use SoureCode\Component\FeatureFlags\Factory\FeatureFlagFactoryInterface;
 use SoureCode\Component\FeatureFlags\Model\FeatureFlagInterface;
 
@@ -25,6 +29,7 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
         private readonly EntityManagerInterface $entityManager,
         private readonly string $featureFlagEntityClassName,
         private readonly FeatureFlagFactoryInterface $featureFlagFactory,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
         $this->featureFlagRepository = $this->entityManager->getRepository($this->featureFlagEntityClassName);
     }
@@ -71,6 +76,8 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
 
         $this->entityManager->remove($flag);
         $this->entityManager->flush();
+
+        $this->eventDispatcher?->dispatch(new FeatureFlagRemovedEvent($name));
     }
 
     public function all(): Collection
@@ -90,12 +97,39 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
 
         $flag = $this->featureFlagRepository->find($name);
 
-        if ($flag === null) {
-            $flag = $this->featureFlagFactory->create($name);
-            $this->entityManager->persist($flag);
+        if ($flag !== null) {
+            $flag->setEnabled($enabled);
+            $this->entityManager->flush();
+            $this->eventDispatcher?->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: false));
+
+            return;
         }
 
+        // Race: another writer may insert the same primary key between our
+        // find() and flush(). Retry once after refreshing — the unique
+        // constraint on `name` is the source of truth.
+        $flag = $this->featureFlagFactory->create($name);
         $flag->setEnabled($enabled);
-        $this->entityManager->flush();
+        $this->entityManager->persist($flag);
+
+        try {
+            $this->entityManager->flush();
+            $this->eventDispatcher?->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: true));
+        } catch (UniqueConstraintViolationException) {
+            $this->entityManager->detach($flag);
+
+            $existing = $this->featureFlagRepository->find($name);
+
+            if ($existing === null) {
+                throw new \RuntimeException(\sprintf(
+                    'FeatureFlags: race on name "%s" but no row found after retry.',
+                    $name,
+                ));
+            }
+
+            $existing->setEnabled($enabled);
+            $this->entityManager->flush();
+            $this->eventDispatcher?->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: false));
+        }
     }
 }

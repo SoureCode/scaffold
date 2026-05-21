@@ -11,6 +11,15 @@ interface FeatureFlagsManagerInterface
 {
     public function isEnabled(string $name): bool;
 
+    /**
+     * Convenience overload that consults gates configured with the manager
+     * (percentage rollout, allow-list, time-window, …). Implementations that
+     * do not support gates fall back to {@see isEnabled()}.
+     *
+     * @param array<string, mixed> $context arbitrary hints ("user_id", "tenant", …)
+     */
+    public function isEnabledFor(string $name, array $context = []): bool;
+
     public function has(string $name): bool;
 
     public function enable(string $name): void;
