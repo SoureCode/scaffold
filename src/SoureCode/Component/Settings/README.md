@@ -77,8 +77,7 @@ Pass it to the [`SettingMappingDriver`](Doctrine/SettingMappingDriver.php) and t
 
 ```php
 $driver  = new SettingMappingDriver(CustomSetting::class, 'custom_settings');
-$factory = new SettingFactory(CustomSetting::class);
-$manager = new DoctrineSettingsManager($em, CustomSetting::class, $factory);
+$manager = new DoctrineSettingsManager($em, CustomSetting::class);
 ```
 
 The [bundle](../../Bundle/SettingsBundle/README.md) does this automatically via `settings.entity_class` and `settings.table_name`.
@@ -93,6 +92,7 @@ The [bundle](../../Bundle/SettingsBundle/README.md) does this automatically via 
 - Single, global scope. No tenant / user / env partitioning built in.
 - `value` is stored as JSON. Resources, closures, non-`json_encode`-able objects don't round-trip.
 - `set()` and `remove()` flush eagerly. Calling them inside another transaction commits early.
+- Writes are not race-safe. Two processes calling `set()` for the same brand-new key at the same time will see one of them raise `Doctrine\DBAL\Exception\UniqueConstraintViolationException`, and Doctrine ORM 3.x will close the EntityManager afterwards. Serialize writes upstream (queue, advisory lock, retry wrapper with a fresh EM) if concurrent writers are expected.
 
 ## Stability
 

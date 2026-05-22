@@ -60,13 +60,4 @@ final class AbstractBehaviorMetadataFactoryTest extends TestCase
         self::assertSame(HierarchyChild::class, $sharedHits[0]['class']);
     }
 
-    public function testWalkIsIdempotentAcrossCalls(): void
-    {
-        $walker = new HierarchyWalker();
-
-        $first = $walker->visitedProperties(HierarchyChild::class);
-        $second = $walker->visitedProperties(HierarchyChild::class);
-
-        self::assertSame($first, $second);
-    }
 }

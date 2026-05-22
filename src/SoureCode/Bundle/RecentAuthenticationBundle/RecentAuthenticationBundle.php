@@ -11,12 +11,19 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 final class RecentAuthenticationBundle extends AbstractBundle
 {
+    /**
+     * 15 minutes — short enough that a forgotten session cannot become a
+     * permanent privilege, long enough that legitimate multi-action flows
+     * don't trip the prompt repeatedly.
+     */
+    public const int DEFAULT_TTL_SECONDS = 900;
+
     public function configure(DefinitionConfigurator $definition): void
     {
         $definition->rootNode()
             ->children()
                 ->integerNode('ttl')
-                    ->defaultValue(900)
+                    ->defaultValue(self::DEFAULT_TTL_SECONDS)
                     ->min(1)
                     ->info('How long, in seconds, a recent authentication remains valid after the user re-confirms credentials.')
                 ->end()

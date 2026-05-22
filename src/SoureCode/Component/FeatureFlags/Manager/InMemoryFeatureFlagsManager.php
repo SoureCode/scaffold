@@ -32,11 +32,9 @@ final class InMemoryFeatureFlagsManager extends AbstractFeatureFlagsManager
     {
         self::validateName($name);
 
-        if (!$this->collection->containsKey($name)) {
-            return false;
-        }
+        $flag = $this->collection->get($name);
 
-        return $this->collection->get($name)->isEnabled();
+        return $flag !== null && $flag->isEnabled();
     }
 
     public function has(string $name): bool

@@ -43,4 +43,53 @@ final class ValidatingSettingsManagerTest extends TestCase
         $manager->set('site.untracked', 42);
         self::assertSame(42, $manager->get('site.untracked'));
     }
+
+    public function testHasDelegatesToInnerManager(): void
+    {
+        $inner = new InMemorySettingsManager();
+        $inner->set('site.title', 'Hello');
+
+        $manager = new ValidatingSettingsManager(
+            $inner,
+            new ArraySettingsSchema(['site.title' => ['type' => 'string']]),
+        );
+
+        self::assertTrue($manager->has('site.title'));
+        self::assertFalse($manager->has('missing.key'));
+    }
+
+    public function testRemoveDelegatesToInnerManagerWithoutSchemaCheck(): void
+    {
+        $inner = new InMemorySettingsManager();
+        $inner->set('site.title', 'Hello');
+        $inner->set('untracked', 42);
+
+        $manager = new ValidatingSettingsManager(
+            $inner,
+            new ArraySettingsSchema(['site.title' => ['type' => 'string']]),
+        );
+
+        $manager->remove('site.title');
+        $manager->remove('untracked');
+
+        self::assertFalse($inner->has('site.title'));
+        self::assertFalse($inner->has('untracked'));
+    }
+
+    public function testAllReturnsCollectionFromInnerManager(): void
+    {
+        $inner = new InMemorySettingsManager();
+        $inner->set('a', 1);
+        $inner->set('b', 'two');
+
+        $manager = new ValidatingSettingsManager(
+            $inner,
+            new ArraySettingsSchema([]),
+        );
+
+        $all = $manager->all();
+
+        self::assertSame($inner->all(), $all);
+        self::assertCount(2, $all);
+    }
 }

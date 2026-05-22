@@ -48,7 +48,6 @@ final class BrandingService
 | Service id | Role |
 |------------|------|
 | `SoureCode\Component\Settings\Manager\SettingsManagerInterface` | The settings store (alias to `DoctrineSettingsManager`). |
-| `SoureCode\Component\Settings\Factory\SettingFactoryInterface` | Builds new `SettingInterface` instances of the configured class. |
 | `setting(key, default = null)` | Twig function, equivalent to `manager.get(key, default)`. |
 
 ## Doctrine mapping

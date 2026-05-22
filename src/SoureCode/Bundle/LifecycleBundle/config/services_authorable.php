@@ -33,7 +33,7 @@ return static function (ContainerConfigurator $container): void {
 
     $services->alias(ImpersonatorProviderInterface::class, SecurityImpersonatorProvider::class);
 
-    // Listener tags are owned by AuthorableBundle::loadExtension via
+    // Listener tags are owned by LifecycleBundle::loadExtension via
     // PrioritizedListenerRegistrar so listener priorities have one
     // source of truth.
 

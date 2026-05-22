@@ -12,7 +12,6 @@ use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
 use SoureCode\Component\Settings\Doctrine\SettingMappingDriver;
-use SoureCode\Component\Settings\Factory\SettingFactory;
 use SoureCode\Component\Settings\Manager\DoctrineSettingsManager;
 use SoureCode\Component\Settings\Model\Setting;
 
@@ -43,7 +42,6 @@ final class DoctrineSettingsManagerTest extends TestCase
         $this->manager = new DoctrineSettingsManager(
             entityManager: $this->entityManager,
             settingEntityClassName: Setting::class,
-            settingFactory: new SettingFactory(),
         );
     }
 
@@ -125,4 +123,32 @@ final class DoctrineSettingsManagerTest extends TestCase
         self::assertNull($this->manager->get('nullable', 'fallback'));
         self::assertTrue($this->manager->has('nullable'));
     }
+
+    public function testGetManyReturnsEmptyArrayForEmptyKeyList(): void
+    {
+        self::assertSame([], $this->manager->getMany([]));
+    }
+
+    public function testGetManyMapsKnownKeysAndNullsMissingOnesAndValidatesEachKey(): void
+    {
+        $this->manager->set('a', 1);
+        $this->manager->set('b', 'two');
+
+        // Duplicate keys must collapse; missing keys must map to null.
+        $result = $this->manager->getMany(['a', 'b', 'b', 'missing']);
+
+        self::assertSame([
+            'a' => 1,
+            'b' => 'two',
+            'missing' => null,
+        ], $result);
+    }
+
+    public function testGetManyRejectsInvalidKey(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->manager->getMany(['valid', 'Invalid Key']);
+    }
+
 }

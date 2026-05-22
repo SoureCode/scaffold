@@ -138,10 +138,14 @@ abstract class AbstractFlushListener
      * the supplied stamper and recompute the change set so the new value
      * actually ships with the flush.
      *
+     * The stamper's return value is intentionally untyped: most concrete
+     * implementations call a void setter from a `fn` arrow function,
+     * which PHP treats as a `mixed`-returning expression.
+     *
      * @template T of object
      *
      * @param T $entity
-     * @param callable(T): void $stamp
+     * @param callable(T): mixed $stamp
      */
     protected function applyInterfaceUpdate(
         object $entity,
@@ -396,6 +400,7 @@ abstract class AbstractFlushListener
     }
 
     /**
+     * @param PersistentCollection<int|string, object> $collection
      * @param \SplObjectStorage<object, true> $scheduledUpdates
      */
     private function touchCollectionWatchers(

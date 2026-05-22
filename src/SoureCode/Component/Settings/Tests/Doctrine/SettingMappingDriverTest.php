@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Settings\Tests\Doctrine;
 
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Tools\DsnParser;
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\DefaultNamingStrategy;
 use Doctrine\ORM\Mapping\DefaultTypedFieldMapper;
+use Doctrine\ORM\ORMSetup;
+use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
 use SoureCode\Component\Settings\Doctrine\SettingMappingDriver;
 use SoureCode\Component\Settings\Model\Setting;
@@ -88,6 +93,39 @@ final class SettingMappingDriverTest extends TestCase
         self::assertFalse($driver->isTransient(Setting::class));
         self::assertTrue($driver->isTransient(CustomSetting::class));
         self::assertTrue($driver->isTransient(\stdClass::class));
+    }
+
+    /**
+     * Reserved-word safety: the generated DDL for the `key` column must
+     * use the active platform's quote character, never raw backticks
+     * leaking from the mapping into the SQL stream. Doctrine's QuoteStrategy
+     * is responsible for translating the `quoted` flag; this test fails
+     * loudly if a refactor accidentally drops the flag and emits bare
+     * `key` (which PostgreSQL would reject as a reserved word).
+     */
+    public function testGeneratedDdlEmitsPlatformQuotedKeyColumn(): void
+    {
+        $config = ORMSetup::createConfiguration(isDevMode: true);
+        $config->setMetadataDriverImpl(new SettingMappingDriver());
+        $config->enableNativeLazyObjects(true);
+
+        $connection = DriverManager::getConnection(
+            (new DsnParser(['sqlite' => 'pdo_sqlite']))->parse('sqlite:///:memory:'),
+            $config,
+        );
+        $entityManager = new EntityManager($connection, $config);
+
+        $sql = (new SchemaTool($entityManager))->getCreateSchemaSql([
+            $entityManager->getClassMetadata(Setting::class),
+        ]);
+
+        $createTable = $sql[0] ?? '';
+
+        $quoteChar = $connection->getDatabasePlatform()->quoteSingleIdentifier('x')[0];
+        $expectedQuoted = $quoteChar . 'key' . $quoteChar;
+
+        self::assertStringContainsString($expectedQuoted, $createTable, 'key column must appear with the platform-specific quote char');
+        self::assertStringNotContainsString('`key`', $createTable, 'raw backticks must not leak into the generated SQL');
     }
 
     /**

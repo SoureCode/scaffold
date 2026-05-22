@@ -23,6 +23,9 @@ final class AuthorableMappingListener extends AbstractMetadataMappingListener
         parent::__construct($metadataFactory);
     }
 
+    /**
+     * @param ClassMetadata<object> $classMetadata
+     */
     protected function mapIfMissing(
         ClassMetadata $classMetadata,
         PersistBindingInterface $binding,

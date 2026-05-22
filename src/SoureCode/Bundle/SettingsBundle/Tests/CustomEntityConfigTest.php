@@ -11,7 +11,6 @@ use Nyholm\BundleTest\TestKernel;
 use SoureCode\Bundle\DoctrineExtensionsBundle\Testing\AbstractBundleTestCase;
 use SoureCode\Bundle\SettingsBundle\SettingsBundle;
 use SoureCode\Component\Settings\Doctrine\SettingMappingDriver;
-use SoureCode\Component\Settings\Factory\SettingFactory;
 use SoureCode\Component\Settings\Manager\DoctrineSettingsManager;
 use SoureCode\Component\Settings\Manager\SettingsManagerInterface;
 use SoureCode\Component\Settings\Tests\Fixtures\CustomSetting;
@@ -55,17 +54,6 @@ final class CustomEntityConfigTest extends AbstractBundleTestCase
 
         self::assertSame([CustomSetting::class], $driver->getAllClassNames());
         self::assertFalse($driver->isTransient(CustomSetting::class));
-    }
-
-    public function testFactoryCreatesCustomEntity(): void
-    {
-        self::bootKernel();
-        $factory = self::getContainer()->get(SettingFactory::class);
-
-        $setting = $factory->create('feature.x');
-
-        self::assertInstanceOf(CustomSetting::class, $setting);
-        self::assertSame('feature.x', $setting->getKey());
     }
 
     public function testManagerEntityClassPropertyMatchesConfig(): void

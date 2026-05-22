@@ -9,8 +9,8 @@ use Doctrine\ORM\Mapping as ORM;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'versionable_tag')]
-class Tag
+#[ORM\Table(name: 'versionable_node')]
+class Node
 {
     #[ORM\Id]
     #[ORM\Column(type: Types::INTEGER)]
@@ -19,11 +19,16 @@ class Tag
 
     #[Versioned]
     #[ORM\Column(type: Types::STRING)]
-    private string $name;
+    private string $label;
 
-    public function __construct(string $name)
+    #[Versioned]
+    #[ORM\ManyToOne(targetEntity: self::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Node $parent = null;
+
+    public function __construct(string $label)
     {
-        $this->name = $name;
+        $this->label = $label;
     }
 
     public function getId(): int
@@ -31,8 +36,13 @@ class Tag
         return $this->id;
     }
 
-    public function setName(string $name): void
+    public function setLabel(string $label): void
     {
-        $this->name = $name;
+        $this->label = $label;
+    }
+
+    public function setParent(?Node $parent): void
+    {
+        $this->parent = $parent;
     }
 }

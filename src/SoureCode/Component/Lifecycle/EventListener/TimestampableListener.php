@@ -75,7 +75,9 @@ final class TimestampableListener extends AbstractFlushListener
             $entityManager,
             $unitOfWork,
             TimestampableInterface::UPDATED_AT_PROPERTY,
-            fn (TimestampableInterface $timestampable): mixed => $timestampable->setUpdatedAt($this->timestampFactory->now()),
+            function (TimestampableInterface $timestampable): void {
+                $timestampable->setUpdatedAt($this->timestampFactory->now());
+            },
         );
     }
 }

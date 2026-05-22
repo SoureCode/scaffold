@@ -33,7 +33,7 @@ final class RecentAuthenticationVoter extends Voter
         if (
             $this->requireFullAuthentication
             && $this->trustResolver !== null
-            && !$this->trustResolver->isAuthenticatedFully($token)
+            && !$this->trustResolver->isFullFledged($token)
         ) {
             return false;
         }

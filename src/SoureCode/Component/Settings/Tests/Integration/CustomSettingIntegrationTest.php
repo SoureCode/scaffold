@@ -12,7 +12,6 @@ use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
 use SoureCode\Component\Settings\Doctrine\SettingMappingDriver;
-use SoureCode\Component\Settings\Factory\SettingFactory;
 use SoureCode\Component\Settings\Manager\DoctrineSettingsManager;
 use SoureCode\Component\Settings\Tests\Fixtures\CustomSetting;
 
@@ -43,11 +42,10 @@ final class CustomSettingIntegrationTest extends TestCase
         $this->manager = new DoctrineSettingsManager(
             entityManager: $this->entityManager,
             settingEntityClassName: CustomSetting::class,
-            settingFactory: new SettingFactory(CustomSetting::class),
         );
     }
 
-    public function testFactoryInstantiatesCustomClassOnFirstWrite(): void
+    public function testFirstWriteHydratesAsConfiguredCustomClassOnRead(): void
     {
         $this->manager->set('color.primary', '#0066ff');
 

@@ -6,12 +6,19 @@ namespace SoureCode\Component\Settings\Manager;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
-use SoureCode\Component\Settings\Factory\SettingFactoryInterface;
 use SoureCode\Component\Settings\Model\SettingInterface;
 
+/**
+ * Concurrency contract: writes are not race-safe. If two processes call
+ * {@see self::set()} for the same key at the same time, one of them will
+ * raise `Doctrine\DBAL\Exception\UniqueConstraintViolationException` and
+ * Doctrine ORM 3.x will close the underlying EntityManager. Callers that
+ * actually need contention support must serialize writes upstream (a
+ * queue, a row-level advisory lock, or a retry wrapper that supplies a
+ * fresh EntityManager).
+ */
 final class DoctrineSettingsManager extends AbstractSettingsManager
 {
     /**
@@ -25,7 +32,6 @@ final class DoctrineSettingsManager extends AbstractSettingsManager
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly string $settingEntityClassName,
-        private readonly SettingFactoryInterface $settingFactory,
     ) {
         $this->settingRepository = $this->entityManager->getRepository($this->settingEntityClassName);
     }
@@ -83,30 +89,12 @@ final class DoctrineSettingsManager extends AbstractSettingsManager
             return;
         }
 
-        // Race: another writer may insert the same primary key between our
-        // find() and flush(). Retry once after refreshing — the unique
-        // constraint on `key` is the source of truth.
-        $setting = $this->settingFactory->create($key);
+        $setting = new ($this->settingEntityClassName)();
+        $setting->setKey($key);
         $setting->setValue($value);
+
         $this->entityManager->persist($setting);
-
-        try {
-            $this->entityManager->flush();
-        } catch (UniqueConstraintViolationException) {
-            $this->entityManager->detach($setting);
-
-            $existing = $this->settingRepository->find($key);
-
-            if ($existing === null) {
-                throw new \RuntimeException(\sprintf(
-                    'Settings: race on key "%s" but no row found after retry.',
-                    $key,
-                ));
-            }
-
-            $existing->setValue($value);
-            $this->entityManager->flush();
-        }
+        $this->entityManager->flush();
     }
 
     public function remove(string $key): void

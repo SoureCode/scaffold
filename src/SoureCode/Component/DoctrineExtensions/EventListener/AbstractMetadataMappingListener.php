@@ -65,6 +65,8 @@ abstract class AbstractMetadataMappingListener
      * MUST be a no-op when the field/association is already mapped — this is
      * the behavior that lets a user pre-declare the column manually and
      * still inherit the rest of the behavior.
+     *
+     * @param ClassMetadata<object> $classMetadata
      */
     abstract protected function mapIfMissing(
         ClassMetadata $classMetadata,

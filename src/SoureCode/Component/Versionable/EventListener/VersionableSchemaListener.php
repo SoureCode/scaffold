@@ -8,8 +8,8 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
-use Doctrine\Persistence\Mapping\ClassMetadataFactory;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Metadata\VersionedBinding;
 
@@ -43,6 +43,11 @@ final class VersionableSchemaListener
         }
     }
 
+    /**
+     * @param ClassMetadata<object> $classMetadata
+     *
+     * @return ClassMetadata<object>
+     */
     private function resolveRootMetadata(ClassMetadata $classMetadata, ClassMetadataFactory $factory): ClassMetadata
     {
         if ($classMetadata->isInheritanceTypeNone()) {
@@ -55,6 +60,8 @@ final class VersionableSchemaListener
     }
 
     /**
+     * @param ClassMetadata<object> $rootMetadata
+     * @param ClassMetadata<object> $sourceMetadata
      * @param list<VersionedBinding> $bindings
      */
     private function createVersionTable(
@@ -97,7 +104,7 @@ final class VersionableSchemaListener
                 $versionTable->addColumn(
                     $discriminator['name'],
                     $discriminator['type'] ?? 'string',
-                    ['notnull' => false, 'length' => $discriminator['length'] ?? 255],
+                    ['notnull' => false, 'length' => $discriminator['length'] ?? VersionTableColumns::DEFAULT_DISCRIMINATOR_LENGTH],
                 );
             }
         }
@@ -142,6 +149,8 @@ final class VersionableSchemaListener
     /**
      * Embeddables flatten into the parent table; we mirror that on the
      * version table by walking the embedded field mappings.
+     *
+     * @param ClassMetadata<object> $source
      */
     private function addEmbeddedColumns(Table $table, ClassMetadata $source, string $embeddedFieldName): void
     {
@@ -158,6 +167,9 @@ final class VersionableSchemaListener
         }
     }
 
+    /**
+     * @param ClassMetadata<object> $source
+     */
     private function addScalarFieldColumn(Table $table, ClassMetadata $source, string $fieldName): void
     {
         $sourceField = $source->getFieldMapping($fieldName);
@@ -185,6 +197,9 @@ final class VersionableSchemaListener
         $table->addColumn($columnName, $sourceField->type, $options);
     }
 
+    /**
+     * @param ClassMetadata<object> $source
+     */
     private function addSingleAssociationColumn(
         Table $table,
         ClassMetadata $source,
@@ -210,6 +225,9 @@ final class VersionableSchemaListener
         }
     }
 
+    /**
+     * @param ClassMetadata<object> $source
+     */
     private function createCollectionTable(
         Schema $schema,
         string $versionTableName,

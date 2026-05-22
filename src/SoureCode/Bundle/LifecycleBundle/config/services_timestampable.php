@@ -19,7 +19,7 @@ return static function (ContainerConfigurator $container): void {
     $services->set(TimestampFactory::class)
         ->args([service(ClockInterface::class)]);
 
-    // Listener tags are owned by TimestampableBundle::loadExtension via
+    // Listener tags are owned by LifecycleBundle::loadExtension via
     // PrioritizedListenerRegistrar so listener priorities have one
     // source of truth.
 

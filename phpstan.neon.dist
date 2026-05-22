@@ -1,3 +1,8 @@
+includes:
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-symfony/extension.neon
+
 parameters:
     level: 6
     paths:
@@ -5,6 +10,20 @@ parameters:
         - src/SoureCode/Bundle
     excludePaths:
         - src/SoureCode/*/*/Tests
+        - src/SoureCode/*/*/Tests/*
     ignoreErrors:
+        # Each method takes ClassMetadata<object> explicitly via @param tags;
+        # the default `T of object` template adds nothing actionable for
+        # iterable-shape inference inside the listeners.
         - identifier: missingType.iterableValue
+
+        # The Doctrine traits in LifecycleBundle/Doctrine/ are public-API
+        # surface — they ship for HOST applications to `use` on their own
+        # entities, not for internal consumption. Tests cover them in the
+        # excluded Tests/ tree, so phpstan can never see a usage in
+        # analysed code and would always flag them as unused.
+        -
+            identifier: trait.unused
+            paths:
+                - src/SoureCode/Bundle/LifecycleBundle/Doctrine/*Trait.php
     treatPhpDocTypesAsCertain: false

@@ -70,7 +70,9 @@ final class AuthorableListener extends AbstractFlushListener
             $entityManager,
             $unitOfWork,
             AuthorableInterface::UPDATED_BY_PROPERTY,
-            fn (AuthorableInterface $authorable): mixed => $authorable->setUpdatedBy($this->authorProvider->getCurrentAuthor()),
+            function (AuthorableInterface $authorable): void {
+                $authorable->setUpdatedBy($this->authorProvider->getCurrentAuthor());
+            },
         );
     }
 }

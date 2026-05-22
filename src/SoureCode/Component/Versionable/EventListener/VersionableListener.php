@@ -221,6 +221,9 @@ final class VersionableListener
         return false;
     }
 
+    /**
+     * @param PersistentCollection<int|string, object> $collection
+     */
     private function collectionOwnerIfVersioned(PersistentCollection $collection): ?object
     {
         $owner = $collection->getOwner();
@@ -407,6 +410,7 @@ final class VersionableListener
      * @template T of object
      *
      * @param T $entity
+     * @param ClassMetadata<object> $classMetadata
      *
      * @return array{0: mixed, 1: int|null}
      */

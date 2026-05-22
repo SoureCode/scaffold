@@ -13,6 +13,9 @@ use SoureCode\Component\Lifecycle\Metadata\TypedBindingInterface;
 
 final class TimestampableMappingListener extends AbstractMetadataMappingListener
 {
+    /**
+     * @param ClassMetadata<object> $classMetadata
+     */
     protected function mapIfMissing(
         ClassMetadata $classMetadata,
         PersistBindingInterface $binding,

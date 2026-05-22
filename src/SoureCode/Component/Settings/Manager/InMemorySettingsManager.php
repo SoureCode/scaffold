@@ -32,11 +32,9 @@ final class InMemorySettingsManager extends AbstractSettingsManager
     {
         self::validateKey($key);
 
-        if (!$this->collection->containsKey($key)) {
-            return $default;
-        }
+        $setting = $this->collection->get($key);
 
-        return $this->collection->get($key)->getValue();
+        return $setting === null ? $default : $setting->getValue();
     }
 
     public function has(string $key): bool

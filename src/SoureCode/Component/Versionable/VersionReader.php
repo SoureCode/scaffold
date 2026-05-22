@@ -103,7 +103,8 @@ final class VersionReader
 
     /**
      * @param class-string $className
-     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>|null
      */
     public function fetchVersionRow(string $className, int|string $entityId, int $version): ?array
     {
@@ -117,6 +118,9 @@ final class VersionReader
         return $row === false ? null : $row;
     }
 
+    /**
+     * @param class-string $className
+     */
     public function diff(string $className, int|string $entityId, int $fromVersion, int $toVersion): ?VersionDiff
     {
         $before = $this->findByVersion($className, $entityId, $fromVersion);
@@ -185,6 +189,8 @@ final class VersionReader
     }
 
     /**
+     * @param ClassMetadata<object> $classMetadata
+     *
      * @return list<int|string|null>
      */
     private function collectionIds(mixed $collection, ClassMetadata $classMetadata, string $fieldName): array

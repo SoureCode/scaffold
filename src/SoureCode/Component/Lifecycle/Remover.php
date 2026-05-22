@@ -129,6 +129,8 @@ final class Remover implements RemoverInterface
      * field mapping. Absence of a mapping means the property is embedded
      * or otherwise not reachable as a flat column — return null so the
      * caller decides what to do.
+     *
+     * @param ClassMetadata<object> $classMetadata
      */
     private function resolveDeletedAtColumn(ClassMetadata $classMetadata, string $propertyName): ?string
     {

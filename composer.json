@@ -98,6 +98,11 @@
     "prefer-stable": true,
     "require-dev": {
         "nyholm/symfony-bundle-test": "^3.1",
+        "open-telemetry/sdk": "^1.14",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-doctrine": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
         "phpunit/phpunit": "^13.1",
         "symfony/cache": "^8.0",
         "symfony/http-client": "^8.0",

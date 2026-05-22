@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace SoureCode\Component\DoctrineExtensions\Tests\EventListener;
 
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Mapping\AssociationMapping;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\PersistentCollection;
 use Doctrine\ORM\UnitOfWork;
 use PHPUnit\Framework\TestCase;
 use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
-use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\FakeBehaviorMetadata;
 use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\FakeBehaviorMetadataFactory;
 use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\FakeChangeBinding;
 use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\FakeFlushListener;
@@ -34,36 +31,40 @@ use SoureCode\Component\DoctrineExtensions\Tests\Fixtures\Sample;
  */
 final class DefensiveGuardsTest extends TestCase
 {
-    public function testWalkPathSkipsNonObjectCollectionElements(): void
+    public function testWalkPathSkipsNonObjectCollectionElementsAndStillFindsTrailingMatch(): void
     {
         $listener = new FakeFlushListener(new FakeBehaviorMetadataFactory(), new ChangeSetMatcher());
 
         $current = new Sample('current');
-        // ArrayCollection's contract is "Collection of mixed", so a scalar
-        // entry is legal at the type system level — the walker's guard
-        // is the only thing keeping the loop from passing a string to a
-        // recursive walkPath call.
-        $current->children = new ArrayCollection(['not-an-object', new Sample('real')]);
+        $match = new Sample('match');
+        // The scalar "not-an-object" must be silently skipped; the walker
+        // must continue iterating and find the trailing object that IS
+        // $changedRelated. If the guard ever flipped from `continue` to
+        // `return false`, the walk would miss the match.
+        $current->children = new ArrayCollection(['not-an-object', $match]);
 
-        $changedRelated = new Sample('changed');
         $nested = null;
         $visited = new \SplObjectStorage();
 
         $walkPath = new \ReflectionMethod($listener, 'walkPath');
-        $args = [$current, 'children.label', $changedRelated, &$nested, $visited];
+        $args = [$current, 'children.label', $match, &$nested, $visited];
         $result = $walkPath->invokeArgs($listener, $args);
 
-        // The string is silently skipped and the real Sample is walked;
-        // neither matches $changedRelated, so the walk returns false.
-        self::assertFalse($result);
+        self::assertTrue($result, 'walker must keep iterating after a non-object element and reach the trailing match');
+        self::assertSame('label', $nested);
     }
 
-    public function testMatchesPathSkipsNonObjectCollectionElements(): void
+    public function testMatchesPathSkipsNonObjectCollectionElementsAndStillReachesTrailingMatch(): void
     {
         $matcher = new ChangeSetMatcher();
 
         $entity = new Sample('parent');
-        $entity->children = new ArrayCollection([123, new Sample('valid')]);
+        $valid = new Sample('valid');
+        // First element is a scalar — must be skipped. The second element
+        // has a `label` change in the unit of work's change set so the
+        // matcher's collection branch must keep walking past the scalar
+        // and report a hit on the real entity.
+        $entity->children = new ArrayCollection([123, $valid]);
 
         $binding = new FakeChangeBinding(
             new \ReflectionProperty(Sample::class, 'label'),
@@ -71,11 +72,10 @@ final class DefensiveGuardsTest extends TestCase
         );
 
         $unitOfWork = $this->createStub(UnitOfWork::class);
-        $unitOfWork->method('getEntityChangeSet')->willReturn([]);
+        $unitOfWork->method('getEntityChangeSet')
+            ->willReturnCallback(static fn (object $passed): array => $passed === $valid ? ['label' => ['old', 'new']] : []);
 
-        // No element matches, but the integer is skipped without throwing
-        // and the walk completes returning false.
-        self::assertFalse($matcher->matches($binding, $entity, $unitOfWork));
+        self::assertTrue($matcher->matches($binding, $entity, $unitOfWork));
     }
 
     public function testTouchCollectionWatchersBailsOnNullOwner(): void
@@ -94,7 +94,8 @@ final class DefensiveGuardsTest extends TestCase
         // Reach into the private method directly: the no-owner case is
         // unreachable through Doctrine's own collection lifecycle, but
         // the guard is the only thing keeping the listener from NPE'ing
-        // on `$owner::class` further down.
+        // on `$owner::class` further down. Removing the guard turns this
+        // test into a TypeError.
         $method = new \ReflectionMethod($listener, 'touchCollectionWatchers');
         $method->invoke($listener, $collection, $entityManager, $unitOfWork, new \SplObjectStorage());
 
@@ -104,14 +105,12 @@ final class DefensiveGuardsTest extends TestCase
     private function createPersistentCollectionWithoutOwner(): PersistentCollection
     {
         $entityManager = $this->createStub(EntityManagerInterface::class);
-
         $classMetadata = $this->createStub(ClassMetadata::class);
 
         $reflection = new \ReflectionClass(PersistentCollection::class);
         /** @var PersistentCollection $collection */
         $collection = $reflection->newInstanceWithoutConstructor();
 
-        // Initialize internal Collection state without setting an owner.
         $initCollection = $reflection->getProperty('collection');
         $initCollection->setValue($collection, new ArrayCollection());
 

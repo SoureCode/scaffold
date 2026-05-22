@@ -37,6 +37,9 @@ final class SoftDeleteFilter extends SQLFilter
         return \sprintf('%s.%s IS NULL', $targetTableAlias, $column);
     }
 
+    /**
+     * @param ClassMetadata<object> $targetEntity
+     */
     private function resolveDeletedAtColumn(ClassMetadata $targetEntity): ?string
     {
         $name = $targetEntity->getName();
