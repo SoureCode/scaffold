@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use SoureCode\Bundle\AuthorableBundle\Tests\Fixtures\User;
-use SoureCode\Bundle\AuthorableBundle\Tests\Support\FixedAuthorProvider;
+use SoureCode\Bundle\LifecycleBundle\Tests\Authorable\Fixtures\User;
+use SoureCode\Bundle\LifecycleBundle\Tests\Authorable\Support\FixedAuthorProvider;
 use SoureCode\Bundle\FeatureFlagsBundle\Tests\Fixtures\StampedFeatureFlag;
-use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
+use SoureCode\Component\Lifecycle\Author\AuthorProviderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 
@@ -42,8 +42,8 @@ return static function (ContainerBuilder $container): void {
                     'mappings' => [
                         'AuthorableUser' => [
                             'type' => 'attribute',
-                            'dir' => __DIR__ . '/../../../../Bundle/AuthorableBundle/Tests/Fixtures',
-                            'prefix' => 'SoureCode\\Bundle\\AuthorableBundle\\Tests\\Fixtures',
+                            'dir' => __DIR__ . '/../../../../Bundle/LifecycleBundle/Tests/Authorable/Fixtures',
+                            'prefix' => 'SoureCode\\Bundle\\LifecycleBundle\\Tests\\Authorable\\Fixtures',
                             'is_bundle' => false,
                         ],
                         'StampedFeatureFlag' => [
@@ -58,9 +58,11 @@ return static function (ContainerBuilder $container): void {
         ],
     ]);
 
-    $container->loadFromExtension('authorable', [
-        'author_provider' => 'app.author_provider',
-        'user_class' => User::class,
+    $container->loadFromExtension('lifecycle', [
+        'authorable' => [
+            'author_provider' => 'app.author_provider',
+            'user_class' => User::class,
+        ],
     ]);
 
     $container->loadFromExtension('feature_flags', [

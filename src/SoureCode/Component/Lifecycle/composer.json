@@ -1,0 +1,30 @@
+{
+    "name": "sourecode/lifecycle",
+    "type": "library",
+    "description": "Entity lifecycle behaviors for Doctrine: Authorable (created/updated/changed/deleted-by), Timestampable (created/updated/changed/deleted-at), and Removable (soft-delete orchestration).",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "doctrine/orm": "^3.6",
+        "psr/clock": "^1.0",
+        "psr/log": "^3.0",
+        "symfony/clock": "^8.0",
+        "sourecode/doctrine-extensions": "self.version"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.1",
+        "symfony/cache": "^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SoureCode\\Component\\Lifecycle\\": ""
+        },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SoureCode\\Component\\Lifecycle\\Tests\\": "Tests/"
+        }
+    },
+    "minimum-stability": "stable"
+}

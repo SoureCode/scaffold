@@ -6,10 +6,10 @@ namespace SoureCode\Bundle\SettingsBundle\Tests\Fixtures;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use SoureCode\Bundle\AuthorableBundle\Doctrine\CreatedByTrait;
-use SoureCode\Bundle\AuthorableBundle\Doctrine\UpdatedByTrait;
-use SoureCode\Bundle\TimestampableBundle\Doctrine\CreatedAtTrait;
-use SoureCode\Bundle\TimestampableBundle\Doctrine\UpdatedAtTrait;
+use SoureCode\Bundle\LifecycleBundle\Doctrine\CreatedByTrait;
+use SoureCode\Bundle\LifecycleBundle\Doctrine\UpdatedByTrait;
+use SoureCode\Bundle\LifecycleBundle\Doctrine\CreatedAtTrait;
+use SoureCode\Bundle\LifecycleBundle\Doctrine\UpdatedAtTrait;
 use SoureCode\Component\Settings\Model\SettingInterface;
 
 #[ORM\Entity]

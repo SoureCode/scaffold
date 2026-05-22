@@ -42,7 +42,7 @@ $em->flush(); // writes a new snapshot capturing the revert
 ### Author per snapshot
 
 ```php
-use SoureCode\Component\Authorable\Attribute\UpdatedBy;
+use SoureCode\Component\Lifecycle\Attribute\UpdatedBy;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[Versioned]
@@ -55,8 +55,8 @@ Every snapshot records who produced it.
 ### Soft-delete history
 
 ```php
-use SoureCode\Component\Authorable\Attribute\DeletedBy;
-use SoureCode\Component\Timestampable\Attribute\DeletedAt;
+use SoureCode\Component\Lifecycle\Attribute\DeletedBy;
+use SoureCode\Component\Lifecycle\Attribute\DeletedAt;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[Versioned]
