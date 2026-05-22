@@ -1,0 +1,10 @@
+parameters:
+    level: 6
+    paths:
+        - src/SoureCode/Component
+        - src/SoureCode/Bundle
+    excludePaths:
+        - src/SoureCode/*/*/Tests
+    ignoreErrors:
+        - identifier: missingType.iterableValue
+    treatPhpDocTypesAsCertain: false

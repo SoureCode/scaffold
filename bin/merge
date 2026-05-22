@@ -6,6 +6,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $rootFile = $root . '/composer.json';
 $packagesGlob = $root . '/src/*/*/*/composer.json';
+$checkOnly = in_array('--check', array_slice($argv, 1), true);
 
 if (!is_file($rootFile)) {
     fwrite(STDERR, "missing root composer.json: {$rootFile}\n");
@@ -93,10 +94,21 @@ $rootJson['replace'] = $replace;
 $rootJson['autoload'] = ['psr-4' => $autoload, 'exclude-from-classmap' => $excludeFromClassmap];
 $rootJson['autoload-dev'] = ['psr-4' => $autoloadDev];
 
-file_put_contents(
-    $rootFile,
-    json_encode($rootJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n",
-);
+$serialized = json_encode($rootJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
+
+if ($checkOnly) {
+    $existing = (string) file_get_contents($rootFile);
+
+    if ($existing !== $serialized) {
+        fwrite(STDERR, "composer.json is out of sync with sub-packages — run bin/merge.\n");
+        exit(2);
+    }
+
+    printf("composer.json is in sync (%d package(s))\n", count($packageFiles));
+    exit(0);
+}
+
+file_put_contents($rootFile, $serialized);
 
 printf("merged %d package(s)\n", count($packageFiles));
 foreach ($packageFiles as $file) {

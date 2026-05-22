@@ -116,6 +116,16 @@
         "nyholm/symfony-bundle-test": "^3.1",
         "phpunit/phpunit": "^13.1",
         "symfony/cache": "^8.0",
-        "symfony/clock": "^8.0"
+        "symfony/clock": "^8.0",
+        "symfony/http-client": "^8.0",
+        "symfony/lock": "^8.0",
+        "symfony/scheduler": "^8.0"
+    },
+    "scripts": {
+        "merge": "@php bin/merge",
+        "merge-check": "@php bin/merge --check",
+        "test": "vendor/bin/phpunit",
+        "post-update-cmd": "@php bin/merge --check",
+        "post-install-cmd": "@php bin/merge --check"
     }
 }

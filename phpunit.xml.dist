@@ -5,11 +5,61 @@
          colors="true"
          failOnWarning="true"
          failOnRisky="true"
+         failOnDeprecation="true"
+         failOnNotice="true"
          cacheDirectory=".phpunit.cache">
+    <php>
+        <ini name="date.timezone" value="UTC"/>
+        <server name="SYMFONY_DEPRECATIONS_HELPER" value="max[self]=0"/>
+        <server name="APP_ENV" value="test" force="true"/>
+        <server name="SHELL_VERBOSITY" value="-1"/>
+    </php>
     <testsuites>
-        <testsuite name="all">
-            <directory>src/SoureCode/Component/*/Tests</directory>
-            <directory>src/SoureCode/Bundle/*/Tests</directory>
+        <testsuite name="Authorable">
+            <directory>src/SoureCode/Component/Authorable/Tests</directory>
+            <directory>src/SoureCode/Bundle/AuthorableBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="DoctrineExtensions">
+            <directory>src/SoureCode/Component/DoctrineExtensions/Tests</directory>
+            <directory>src/SoureCode/Bundle/DoctrineExtensionsBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="FeatureFlags">
+            <directory>src/SoureCode/Component/FeatureFlags/Tests</directory>
+            <directory>src/SoureCode/Bundle/FeatureFlagsBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="RecentAuthentication">
+            <directory>src/SoureCode/Bundle/RecentAuthenticationBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="Removable">
+            <directory>src/SoureCode/Component/Removable/Tests</directory>
+            <directory>src/SoureCode/Bundle/RemovableBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="Settings">
+            <directory>src/SoureCode/Component/Settings/Tests</directory>
+            <directory>src/SoureCode/Bundle/SettingsBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="Timestampable">
+            <directory>src/SoureCode/Component/Timestampable/Tests</directory>
+            <directory>src/SoureCode/Bundle/TimestampableBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="Traceable">
+            <directory>src/SoureCode/Component/Traceable/Tests</directory>
+            <directory>src/SoureCode/Bundle/TraceableBundle/Tests</directory>
+        </testsuite>
+        <testsuite name="Versionable">
+            <directory>src/SoureCode/Component/Versionable/Tests</directory>
+            <directory>src/SoureCode/Bundle/VersionableBundle/Tests</directory>
         </testsuite>
     </testsuites>
+    <source>
+        <include>
+            <directory>src/SoureCode/Component</directory>
+            <directory>src/SoureCode/Bundle</directory>
+        </include>
+        <exclude>
+            <directory>src/SoureCode/Component/*/Tests</directory>
+            <directory>src/SoureCode/Bundle/*/Tests</directory>
+        </exclude>
+    </source>
+    <coverage includeUncoveredFiles="true"/>
 </phpunit>
