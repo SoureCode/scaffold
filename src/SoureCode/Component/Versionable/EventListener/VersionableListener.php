@@ -95,8 +95,37 @@ final class VersionableListener
         $pending = $this->pendingSnapshots;
         $this->pendingSnapshots = null;
 
-        foreach ($pending as $entity) {
-            $this->writeSnapshot($entity, $entityManager);
+        // postFlush fires after the entity transaction has committed; wrap
+        // the snapshot writes in their own transaction so a mid-batch
+        // failure rolls back the partial audit history instead of leaving
+        // half the snapshots written.
+        $connection = $entityManager->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            foreach ($pending as $entity) {
+                $this->writeSnapshot($entity, $entityManager);
+            }
+
+            $connection->commit();
+        } catch (\Throwable $exception) {
+            $connection->rollBack();
+
+            $committed = [];
+
+            foreach ($pending as $entity) {
+                $committed[] = $entity::class;
+            }
+
+            $this->logger->error(
+                'Versionable: entity changes were committed but the audit snapshot transaction failed; history for {classes} is missing.',
+                [
+                    'classes' => implode(', ', array_unique($committed)),
+                    'exception' => $exception,
+                ],
+            );
+
+            throw $exception;
         }
     }
 
@@ -228,7 +257,7 @@ final class VersionableListener
         $platform = $connection->getDatabasePlatform();
 
         $sourceTable = $classMetadata->getTableName();
-        $versionTable = VersionableMetadataFactory::versionTableName($sourceTable);
+        $versionTable = $this->metadataFactory->versionTableName($sourceTable);
 
         $idField = $classMetadata->getSingleIdentifierFieldName();
         $entityId = $classMetadata->getReflectionProperty($idField)->getValue($entity);
@@ -246,8 +275,8 @@ final class VersionableListener
         $entityIdValue = $idType->convertToDatabaseValue($entityId, $platform);
 
         $row = [
-            'entity_id' => $entityIdValue,
-            'created_at' => Type::getType(Types::DATETIMETZ_IMMUTABLE)
+            VersionTableColumns::ENTITY_ID => $entityIdValue,
+            VersionTableColumns::CREATED_AT => Type::getType(Types::DATETIMETZ_IMMUTABLE)
                 ->convertToDatabaseValue(\DateTimeImmutable::createFromInterface($this->clock->now()), $platform),
         ];
 
@@ -264,18 +293,9 @@ final class VersionableListener
         foreach ($metadata->bindings as $binding) {
             $fieldName = $binding->property->getName();
 
-            if ($classMetadata->hasField($fieldName)) {
-                $columnName = $classMetadata->getColumnName($fieldName);
-                $value = $binding->property->getValue($entity);
-                $type = Type::getType($classMetadata->getFieldMapping($fieldName)->type);
-                $row[$columnName] = $type->convertToDatabaseValue($value, $platform);
-
-                continue;
-            }
-
-            // Embeddables: writeSnapshot reads each flat field "<prop>.<sub>"
-            // via Doctrine's ClassMetadata accessor so the embedded value
-            // object's columns are persisted on the version row.
+            // Embeddable check first: ClassMetadata::hasField() returns true
+            // for embedded parents too. Reading getFieldMapping() on an
+            // embedded parent throws.
             if (isset($classMetadata->embeddedClasses[$fieldName])) {
                 foreach ($classMetadata->getFieldNames() as $flat) {
                     if (!str_starts_with($flat, $fieldName . '.')) {
@@ -291,16 +311,25 @@ final class VersionableListener
                 continue;
             }
 
+            if (isset($classMetadata->fieldMappings[$fieldName])) {
+                $columnName = $classMetadata->getColumnName($fieldName);
+                $value = $binding->property->getValue($entity);
+                $type = Type::getType($classMetadata->getFieldMapping($fieldName)->type);
+                $row[$columnName] = $type->convertToDatabaseValue($value, $platform);
+
+                continue;
+            }
+
             if (!$classMetadata->hasAssociation($fieldName)) {
                 continue;
             }
 
             if ($classMetadata->isSingleValuedAssociation($fieldName)) {
                 [$idValue, $targetVersion] = $this->captureSingleAssociation($entity, $binding, $classMetadata, $connection, $entityManager);
-                $row[$fieldName . '_id'] = $idValue;
+                $row[$fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX] = $idValue;
 
                 if ($this->metadataFactory->isVersionable($classMetadata->getAssociationMapping($fieldName)->targetEntity)) {
-                    $row[$fieldName . '_version'] = $targetVersion;
+                    $row[$fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX] = $targetVersion;
                 }
 
                 continue;
@@ -338,7 +367,7 @@ final class VersionableListener
         while (true) {
             $attempts++;
 
-            $row['version'] = $this->nextVersionFor($connection, $versionTable, $entityIdValue);
+            $row[VersionTableColumns::VERSION] = $this->nextVersionFor($connection, $versionTable, $entityIdValue);
 
             try {
                 $connection->insert($versionTable, $row);
@@ -365,9 +394,9 @@ final class VersionableListener
     private function nextVersionFor(Connection $connection, string $versionTable, mixed $entityIdValue): int
     {
         $value = $connection->createQueryBuilder()
-            ->select('MAX(version)')
+            ->select(\sprintf('MAX(%s)', VersionTableColumns::VERSION))
             ->from($versionTable)
-            ->where('entity_id = :entity_id')
+            ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->setParameter('entity_id', $entityIdValue)
             ->fetchOne();
 
@@ -459,13 +488,13 @@ final class VersionableListener
             $idDbValue = $idType->convertToDatabaseValue($elementId, $platform);
 
             $row = [
-                'version_id' => $versionRowId,
-                'position' => $position++,
-                'target_id' => $idDbValue,
+                VersionTableColumns::JOIN_VERSION_ID => $versionRowId,
+                VersionTableColumns::JOIN_POSITION => $position++,
+                VersionTableColumns::JOIN_TARGET_ID => $idDbValue,
             ];
 
             if ($captureVersion) {
-                $row['target_version'] = $this->loadCurrentTargetVersion($targetClass, $idDbValue, $connection, $entityManager);
+                $row[VersionTableColumns::JOIN_TARGET_VERSION] = $this->loadCurrentTargetVersion($targetClass, $idDbValue, $connection, $entityManager);
             }
 
             $connection->insert($joinTable, $row);
@@ -481,14 +510,14 @@ final class VersionableListener
         Connection $connection,
         EntityManagerInterface $entityManager,
     ): ?int {
-        $targetVersionTable = VersionableMetadataFactory::versionTableName(
+        $targetVersionTable = $this->metadataFactory->versionTableName(
             $entityManager->getClassMetadata($targetClass)->getTableName(),
         );
 
         $value = $connection->createQueryBuilder()
-            ->select('MAX(version)')
+            ->select(\sprintf('MAX(%s)', VersionTableColumns::VERSION))
             ->from($targetVersionTable)
-            ->where('entity_id = :entity_id')
+            ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->setParameter('entity_id', $targetIdValue)
             ->fetchOne();
 

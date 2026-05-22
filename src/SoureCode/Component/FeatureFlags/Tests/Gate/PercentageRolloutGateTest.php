@@ -30,11 +30,11 @@ final class PercentageRolloutGateTest extends TestCase
         self::assertNull($gate->decide('other.flag', ['user_id' => 'alice']));
     }
 
-    public function testWithoutUserIdReturnsFalse(): void
+    public function testWithoutUserIdAbstainsSoManagerFallsBack(): void
     {
         $gate = new PercentageRolloutGate(['checkout.v2' => 50]);
 
-        self::assertFalse($gate->decide('checkout.v2'));
+        self::assertNull($gate->decide('checkout.v2'));
     }
 
     public function testDecisionIsDeterministicPerUserPerFlag(): void

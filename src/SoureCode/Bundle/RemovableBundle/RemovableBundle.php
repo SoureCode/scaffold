@@ -46,8 +46,13 @@ final class RemovableBundle extends AbstractBundle
     {
         $container->import(__DIR__ . '/config/services.php');
 
+        // All soft_delete_filter settings live as container parameters so
+        // services.php, prependExtension(), and host overrides share one
+        // storage site.
         $builder->setParameter('sourecode.removable.soft_delete_filter.enabled', $config['soft_delete_filter']['enabled']);
         $builder->setParameter('sourecode.removable.soft_delete_filter.name', $config['soft_delete_filter']['name']);
+        $builder->setParameter('sourecode.removable.soft_delete_filter.entity_manager', $config['soft_delete_filter']['entity_manager']);
+        $builder->setParameter('sourecode.removable.soft_delete_filter.enabled_by_default', $config['soft_delete_filter']['enabled_by_default']);
     }
 
     public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void

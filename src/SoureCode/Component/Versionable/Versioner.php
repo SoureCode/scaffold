@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use SoureCode\Component\Versionable\EventListener\VersionTableColumns;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 final class Versioner implements VersionerInterface
@@ -35,8 +36,8 @@ final class Versioner implements VersionerInterface
     public function findHistory(string $className, int|string $entityId): array
     {
         $rows = $this->newQuery($className)
-            ->where('entity_id = :entity_id')
-            ->orderBy('version', 'ASC')
+            ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
+            ->orderBy(VersionTableColumns::VERSION, 'ASC')
             ->setParameter('entity_id', $entityId)
             ->fetchAllAssociative();
 
@@ -59,8 +60,8 @@ final class Versioner implements VersionerInterface
     public function findByVersion(string $className, int|string $entityId, int $version): ?object
     {
         $row = $this->newQuery($className)
-            ->where('entity_id = :entity_id')
-            ->andWhere('version = :version')
+            ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
+            ->andWhere(VersionTableColumns::VERSION . ' = :version')
             ->setParameter('entity_id', $entityId)
             ->setParameter('version', $version)
             ->fetchAssociative();
@@ -82,8 +83,8 @@ final class Versioner implements VersionerInterface
     public function findLatestVersion(string $className, int|string $entityId): ?object
     {
         $row = $this->newQuery($className)
-            ->where('entity_id = :entity_id')
-            ->orderBy('version', 'DESC')
+            ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
+            ->orderBy(VersionTableColumns::VERSION, 'DESC')
             ->setMaxResults(1)
             ->setParameter('entity_id', $entityId)
             ->fetchAssociative();
@@ -141,8 +142,8 @@ final class Versioner implements VersionerInterface
         }
 
         $row = $this->newQuery($className)
-            ->where('entity_id = :entity_id')
-            ->andWhere('version = :version')
+            ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
+            ->andWhere(VersionTableColumns::VERSION . ' = :version')
             ->setParameter('entity_id', $entityId)
             ->setParameter('version', $version)
             ->fetchAssociative();
@@ -199,7 +200,7 @@ final class Versioner implements VersionerInterface
             }
 
             if ($classMetadata->isSingleValuedAssociation($name)) {
-                $targetVersion = $row[$name . '_version'] ?? null;
+                $targetVersion = $row[$name . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX] ?? null;
                 $related = $binding->property->getValue($entity);
 
                 if ($targetVersion !== null && is_object($related)) {
@@ -212,11 +213,11 @@ final class Versioner implements VersionerInterface
             if ($classMetadata->isCollectionValuedAssociation($name)) {
                 $joinTable = $this->getVersionTable($className) . '_' . $name;
                 $joinRows = $this->entityManager->getConnection()->createQueryBuilder()
-                    ->select('target_id', 'target_version')
+                    ->select(VersionTableColumns::JOIN_TARGET_ID, VersionTableColumns::JOIN_TARGET_VERSION)
                     ->from($joinTable)
-                    ->where('version_id = :version_id')
-                    ->orderBy('position', 'ASC')
-                    ->setParameter('version_id', $row['id'])
+                    ->where(VersionTableColumns::JOIN_VERSION_ID . ' = :version_id')
+                    ->orderBy(VersionTableColumns::JOIN_POSITION, 'ASC')
+                    ->setParameter('version_id', $row[VersionTableColumns::ID])
                     ->fetchAllAssociative();
 
                 $targetMetadata = $this->entityManager->getClassMetadata($assoc->targetEntity);
@@ -224,17 +225,17 @@ final class Versioner implements VersionerInterface
                 $targetRepository = $this->entityManager->getRepository($assoc->targetEntity);
 
                 foreach ($joinRows as $joinRow) {
-                    if (($joinRow['target_version'] ?? null) === null) {
+                    if (($joinRow[VersionTableColumns::JOIN_TARGET_VERSION] ?? null) === null) {
                         continue;
                     }
 
-                    $related = $targetRepository->findOneBy([$targetIdField => $joinRow['target_id']]);
+                    $related = $targetRepository->findOneBy([$targetIdField => $joinRow[VersionTableColumns::JOIN_TARGET_ID]]);
 
                     if ($related === null) {
                         continue;
                     }
 
-                    $this->applyVersionInternal($related, (int) $joinRow['target_version'], [], cascade: true, visited: $visited);
+                    $this->applyVersionInternal($related, (int) $joinRow[VersionTableColumns::JOIN_TARGET_VERSION], [], cascade: true, visited: $visited);
                 }
             }
         }
@@ -249,12 +250,33 @@ final class Versioner implements VersionerInterface
     private function snapshotPropertyValues(string $className, object $entity, array $onlyFields): array
     {
         $metadata = $this->metadataFactory->getMetadataFor($className);
+        $classMetadata = $this->entityManager->getClassMetadata($className);
         $values = [];
 
         foreach ($metadata->bindings as $binding) {
             $name = $binding->property->getName();
 
             if ($onlyFields !== [] && !in_array($name, $onlyFields, true)) {
+                continue;
+            }
+
+            // Doctrine's setFieldValue mutates the embedded value object in
+            // place rather than replacing it, so two snapshots taken before
+            // and after a restore are the same object reference. Flatten the
+            // sub-fields so the comparison sees the changed values.
+            if (isset($classMetadata->embeddedClasses[$name])) {
+                $flat = [];
+
+                foreach ($classMetadata->getFieldNames() as $flatField) {
+                    if (!str_starts_with($flatField, $name . '.')) {
+                        continue;
+                    }
+
+                    $flat[$flatField] = $classMetadata->getFieldValue($entity, $flatField);
+                }
+
+                $values[$name] = $flat;
+
                 continue;
             }
 
@@ -286,7 +308,7 @@ final class Versioner implements VersionerInterface
         $idType = Type::getType($classMetadata->getFieldMapping($idField)->type);
         $classMetadata->getReflectionProperty($idField)->setValue(
             $entity,
-            $idType->convertToPHPValue($row['entity_id'], $this->entityManager->getConnection()->getDatabasePlatform()),
+            $idType->convertToPHPValue($row[VersionTableColumns::ENTITY_ID], $this->entityManager->getConnection()->getDatabasePlatform()),
         );
 
         $this->applyRowOntoEntity($className, $entity, $row);
@@ -312,16 +334,10 @@ final class Versioner implements VersionerInterface
                 continue;
             }
 
-            if ($classMetadata->hasField($name)) {
-                $type = Type::getType($classMetadata->getFieldMapping($name)->type);
-                $columnName = $classMetadata->getColumnName($name);
-                $binding->property->setValue($entity, $type->convertToPHPValue($row[$columnName] ?? null, $platform));
-
-                continue;
-            }
-
             // Embeddables: restore each flat "<prop>.<sub>" individually;
-            // Doctrine's setFieldValue rebuilds the value object.
+            // Doctrine's setFieldValue rebuilds the value object. Check
+            // embeddable BEFORE hasField — ClassMetadata::hasField() returns
+            // true for embedded parents too.
             if (isset($classMetadata->embeddedClasses[$name])) {
                 foreach ($classMetadata->getFieldNames() as $flat) {
                     if (!str_starts_with($flat, $name . '.')) {
@@ -336,6 +352,14 @@ final class Versioner implements VersionerInterface
                 continue;
             }
 
+            if (isset($classMetadata->fieldMappings[$name])) {
+                $type = Type::getType($classMetadata->getFieldMapping($name)->type);
+                $columnName = $classMetadata->getColumnName($name);
+                $binding->property->setValue($entity, $type->convertToPHPValue($row[$columnName] ?? null, $platform));
+
+                continue;
+            }
+
             if (!$classMetadata->hasAssociation($name)) {
                 continue;
             }
@@ -343,7 +367,7 @@ final class Versioner implements VersionerInterface
             $assoc = $classMetadata->getAssociationMapping($name);
 
             if ($classMetadata->isSingleValuedAssociation($name)) {
-                $targetId = $row[$name . '_id'] ?? null;
+                $targetId = $row[$name . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX] ?? null;
                 // Route through findOneBy so the existence check actually runs a SELECT;
                 // EntityManager::find returns an uninitialized lazy ghost for missing ids
                 // under PHP 8.4+ native lazy objects, which would silence the warning below.
@@ -373,11 +397,11 @@ final class Versioner implements VersionerInterface
             if ($classMetadata->isCollectionValuedAssociation($name)) {
                 $joinTable = $this->getVersionTable($className) . '_' . $name;
                 $joinRows = $this->entityManager->getConnection()->createQueryBuilder()
-                    ->select('target_id')
+                    ->select(VersionTableColumns::JOIN_TARGET_ID)
                     ->from($joinTable)
-                    ->where('version_id = :version_id')
-                    ->orderBy('position', 'ASC')
-                    ->setParameter('version_id', $row['id'])
+                    ->where(VersionTableColumns::JOIN_VERSION_ID . ' = :version_id')
+                    ->orderBy(VersionTableColumns::JOIN_POSITION, 'ASC')
+                    ->setParameter('version_id', $row[VersionTableColumns::ID])
                     ->fetchAllAssociative();
 
                 $collection = $binding->property->getValue($entity);
@@ -395,7 +419,7 @@ final class Versioner implements VersionerInterface
                 $targetRepository = $this->entityManager->getRepository($assoc->targetEntity);
 
                 foreach ($joinRows as $joinRow) {
-                    $related = $targetRepository->findOneBy([$targetIdField => $joinRow['target_id']]);
+                    $related = $targetRepository->findOneBy([$targetIdField => $joinRow[VersionTableColumns::JOIN_TARGET_ID]]);
 
                     if ($related === null) {
                         $this->logger->warning(
@@ -404,7 +428,7 @@ final class Versioner implements VersionerInterface
                                 'class' => $className,
                                 'field' => $name,
                                 'target' => $assoc->targetEntity,
-                                'id' => $joinRow['target_id'],
+                                'id' => $joinRow[VersionTableColumns::JOIN_TARGET_ID],
                             ],
                         );
 
@@ -468,9 +492,9 @@ final class Versioner implements VersionerInterface
         $versionTable = $this->getVersionTable($className);
 
         $entityIds = $connection->createQueryBuilder()
-            ->select('DISTINCT entity_id')
+            ->select(\sprintf('DISTINCT %s', VersionTableColumns::ENTITY_ID))
             ->from($versionTable)
-            ->where('created_at < :cutoff')
+            ->where(VersionTableColumns::CREATED_AT . ' < :cutoff')
             ->setParameter('cutoff', $cutoff)
             ->fetchFirstColumn();
 
@@ -478,24 +502,24 @@ final class Versioner implements VersionerInterface
 
         foreach ($entityIds as $entityId) {
             $keepers = $connection->createQueryBuilder()
-                ->select('id')
+                ->select(VersionTableColumns::ID)
                 ->from($versionTable)
-                ->where('entity_id = :entity_id')
-                ->orderBy('version', 'DESC')
+                ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
+                ->orderBy(VersionTableColumns::VERSION, 'DESC')
                 ->setMaxResults($keepLast)
                 ->setParameter('entity_id', $entityId)
                 ->fetchFirstColumn();
 
             $queryBuilder = $connection->createQueryBuilder()
                 ->delete($versionTable)
-                ->where('entity_id = :entity_id')
-                ->andWhere('created_at < :cutoff')
+                ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
+                ->andWhere(VersionTableColumns::CREATED_AT . ' < :cutoff')
                 ->setParameter('entity_id', $entityId)
                 ->setParameter('cutoff', $cutoff);
 
             if ($keepers !== []) {
                 $queryBuilder
-                    ->andWhere('id NOT IN (:keepers)')
+                    ->andWhere(VersionTableColumns::ID . ' NOT IN (:keepers)')
                     ->setParameter('keepers', $keepers, ArrayParameterType::INTEGER);
             }
 
@@ -550,7 +574,7 @@ final class Versioner implements VersionerInterface
      */
     private function getVersionTable(string $className): string
     {
-        return VersionableMetadataFactory::versionTableName(
+        return $this->metadataFactory->versionTableName(
             $this->entityManager->getClassMetadata($className)->getTableName(),
         );
     }

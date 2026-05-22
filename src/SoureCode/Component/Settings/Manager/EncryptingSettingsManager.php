@@ -14,12 +14,15 @@ use SoureCode\Component\Settings\Encryption\SensitiveValueCoderInterface;
  * are not supported here on purpose; if you need globs, compose this
  * decorator with a custom matcher.
  *
- * Stored values are tagged with a short prefix so the decoder can refuse
- * to operate on legacy plaintext rows without dropping data silently.
+ * Stored values are tagged with `enc::<scheme>:` so the decoder can:
+ *   - refuse to operate on legacy plaintext rows without dropping data,
+ *   - reject payloads that were written by a different scheme, and
+ *   - let a multi-scheme coder migrate values lazily on read instead of
+ *     forcing a global rewrite of every row.
  */
 final class EncryptingSettingsManager extends AbstractSettingsManager
 {
-    private const string ENCODED_PREFIX = 'enc::';
+    public const string ENCODED_PREFIX = 'enc::';
 
     /**
      * @param list<string> $sensitiveKeys
@@ -51,7 +54,21 @@ final class EncryptingSettingsManager extends AbstractSettingsManager
             ));
         }
 
-        return $this->coder->decode(substr($raw, strlen(self::ENCODED_PREFIX)));
+        $remainder = substr($raw, strlen(self::ENCODED_PREFIX));
+        $separator = strpos($remainder, ':');
+
+        if ($separator === false) {
+            throw new \RuntimeException(\sprintf(
+                'Settings: sensitive key "%s" is missing the scheme tag — expected "%s<scheme>:<payload>".',
+                $key,
+                self::ENCODED_PREFIX,
+            ));
+        }
+
+        $scheme = substr($remainder, 0, $separator);
+        $payload = substr($remainder, $separator + 1);
+
+        return $this->coder->decode($scheme === $this->coder->scheme() ? $payload : $remainder);
     }
 
     public function has(string $key): bool
@@ -62,7 +79,7 @@ final class EncryptingSettingsManager extends AbstractSettingsManager
     public function set(string $key, mixed $value): void
     {
         if ($this->isSensitive($key)) {
-            $value = self::ENCODED_PREFIX . $this->coder->encode($value);
+            $value = self::ENCODED_PREFIX . $this->coder->scheme() . ':' . $this->coder->encode($value);
         }
 
         $this->inner->set($key, $value);

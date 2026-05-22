@@ -69,6 +69,24 @@ abstract class AbstractFlushListener
         $entityManager = $args->getObjectManager();
         $unitOfWork = $entityManager->getUnitOfWork();
 
+        // Both isScheduledForUpdate and isScheduledForDeletion used to scan
+        // these arrays linearly per identity-map entry, turning the flush
+        // into O(n²). Materialize them once per flush so every check is
+        // O(1).
+        /** @var \SplObjectStorage<object, true> $scheduledUpdates */
+        $scheduledUpdates = new \SplObjectStorage();
+
+        foreach ($unitOfWork->getScheduledEntityUpdates() as $scheduled) {
+            $scheduledUpdates[$scheduled] = true;
+        }
+
+        /** @var \SplObjectStorage<object, true> $scheduledDeletions */
+        $scheduledDeletions = new \SplObjectStorage();
+
+        foreach ($unitOfWork->getScheduledEntityDeletions() as $scheduled) {
+            $scheduledDeletions[$scheduled] = true;
+        }
+
         foreach ($unitOfWork->getScheduledEntityUpdates() as $entity) {
             $this->touchScheduled($entity, $entityManager, $unitOfWork);
         }
@@ -76,23 +94,23 @@ abstract class AbstractFlushListener
         // Same list iterated again on purpose: pass 1 stamps the entity itself; pass 2 walks the
         // identity map to stamp any *other* entity that watches one of these via a dotted path.
         foreach ($unitOfWork->getScheduledEntityUpdates() as $changedRelated) {
-            $this->touchRelatedWatchers($changedRelated, $entityManager, $unitOfWork, useChangeSet: true, ignoreValueMatcher: false);
+            $this->touchRelatedWatchers($changedRelated, $entityManager, $unitOfWork, $scheduledUpdates, $scheduledDeletions, useChangeSet: true, ignoreValueMatcher: false);
         }
 
         foreach ($unitOfWork->getScheduledEntityInsertions() as $changedRelated) {
-            $this->touchRelatedWatchers($changedRelated, $entityManager, $unitOfWork, useChangeSet: true, ignoreValueMatcher: false);
+            $this->touchRelatedWatchers($changedRelated, $entityManager, $unitOfWork, $scheduledUpdates, $scheduledDeletions, useChangeSet: true, ignoreValueMatcher: false);
         }
 
         foreach ($unitOfWork->getScheduledEntityDeletions() as $changedRelated) {
-            $this->touchRelatedWatchers($changedRelated, $entityManager, $unitOfWork, useChangeSet: false, ignoreValueMatcher: true);
+            $this->touchRelatedWatchers($changedRelated, $entityManager, $unitOfWork, $scheduledUpdates, $scheduledDeletions, useChangeSet: false, ignoreValueMatcher: true);
         }
 
         foreach ($unitOfWork->getScheduledCollectionUpdates() as $collection) {
-            $this->touchCollectionWatchers($collection, $entityManager, $unitOfWork);
+            $this->touchCollectionWatchers($collection, $entityManager, $unitOfWork, $scheduledUpdates);
         }
 
         foreach ($unitOfWork->getScheduledCollectionDeletions() as $collection) {
-            $this->touchCollectionWatchers($collection, $entityManager, $unitOfWork);
+            $this->touchCollectionWatchers($collection, $entityManager, $unitOfWork, $scheduledUpdates);
         }
     }
 
@@ -113,6 +131,36 @@ abstract class AbstractFlushListener
      * @param T $entity
      */
     abstract protected function handleUpdateInterfaceFallback(object $entity, EntityManagerInterface $entityManager, UnitOfWork $unitOfWork): void;
+
+    /**
+     * Shared shape for interface-fallback update stamping: skip if the
+     * property already shows up in the entity's change set, otherwise run
+     * the supplied stamper and recompute the change set so the new value
+     * actually ships with the flush.
+     *
+     * @template T of object
+     *
+     * @param T $entity
+     * @param callable(T): void $stamp
+     */
+    protected function applyInterfaceUpdate(
+        object $entity,
+        EntityManagerInterface $entityManager,
+        UnitOfWork $unitOfWork,
+        string $propertyName,
+        callable $stamp,
+    ): void {
+        if (array_key_exists($propertyName, $unitOfWork->getEntityChangeSet($entity))) {
+            return;
+        }
+
+        $stamp($entity);
+
+        $unitOfWork->recomputeSingleEntityChangeSet(
+            $entityManager->getClassMetadata($entity::class),
+            $entity,
+        );
+    }
 
     /**
      * @template T of object
@@ -170,11 +218,15 @@ abstract class AbstractFlushListener
      * @template T of object
      *
      * @param T $changedRelated
+     * @param \SplObjectStorage<object, true> $scheduledUpdates
+     * @param \SplObjectStorage<object, true> $scheduledDeletions
      */
     private function touchRelatedWatchers(
         object $changedRelated,
         EntityManagerInterface $entityManager,
         UnitOfWork $unitOfWork,
+        \SplObjectStorage $scheduledUpdates,
+        \SplObjectStorage $scheduledDeletions,
         bool $useChangeSet,
         bool $ignoreValueMatcher,
     ): void {
@@ -186,11 +238,11 @@ abstract class AbstractFlushListener
             }
 
             foreach ($entities as $entity) {
-                if ($this->isScheduledForUpdate($entity, $unitOfWork)) {
+                if (isset($scheduledUpdates[$entity])) {
                     continue;
                 }
 
-                if ($this->isScheduledForDeletion($entity, $unitOfWork)) {
+                if (isset($scheduledDeletions[$entity])) {
                     continue;
                 }
 
@@ -324,7 +376,11 @@ abstract class AbstractFlushListener
                     return true;
                 }
 
-                if ($this->walkPath($element, $tail, $changedRelated, $nested, clone $visited)) {
+                // Share $visited across sibling elements: cloning per
+                // element used to defeat the cycle guard (an element could
+                // walk back into a sibling that was already in flight) and
+                // allocated a fresh SplObjectStorage per element.
+                if ($this->walkPath($element, $tail, $changedRelated, $nested, $visited)) {
                     return true;
                 }
             }
@@ -339,10 +395,14 @@ abstract class AbstractFlushListener
         return $this->walkPath($related, $tail, $changedRelated, $nested, $visited);
     }
 
+    /**
+     * @param \SplObjectStorage<object, true> $scheduledUpdates
+     */
     private function touchCollectionWatchers(
         PersistentCollection $collection,
         EntityManagerInterface $entityManager,
         UnitOfWork $unitOfWork,
+        \SplObjectStorage $scheduledUpdates,
     ): void {
         $owner = $collection->getOwner();
 
@@ -372,10 +432,11 @@ abstract class AbstractFlushListener
         }
 
         if ($touched) {
-            if (!$this->isScheduledForUpdate($owner, $unitOfWork)) {
+            if (!isset($scheduledUpdates[$owner])) {
                 // Empty changeset here is a placeholder — recomputeSingleEntityChangeSet below
                 // populates it from the owner's current property values.
                 $unitOfWork->scheduleExtraUpdate($owner, []);
+                $scheduledUpdates[$owner] = true;
             }
 
             $unitOfWork->recomputeSingleEntityChangeSet(
@@ -383,37 +444,5 @@ abstract class AbstractFlushListener
                 $owner,
             );
         }
-    }
-
-    /**
-     * @template T of object
-     *
-     * @param T $entity
-     */
-    private function isScheduledForUpdate(object $entity, UnitOfWork $unitOfWork): bool
-    {
-        foreach ($unitOfWork->getScheduledEntityUpdates() as $scheduled) {
-            if ($scheduled === $entity) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @template T of object
-     *
-     * @param T $entity
-     */
-    private function isScheduledForDeletion(object $entity, UnitOfWork $unitOfWork): bool
-    {
-        foreach ($unitOfWork->getScheduledEntityDeletions() as $scheduled) {
-            if ($scheduled === $entity) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

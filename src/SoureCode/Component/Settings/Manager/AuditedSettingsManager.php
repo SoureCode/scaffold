@@ -18,6 +18,13 @@ use SoureCode\Component\Settings\Event\SettingRemovedEvent;
  * Reads pass through. The decorator does not store anything on its own —
  * audit persistence is the subscriber's job, in line with the project rule
  * that audit trails are host-application concerns.
+ *
+ * Concurrency note: the `previous` value carried by `SettingChangedEvent` /
+ * `SettingRemovedEvent` is best-effort. The manager interface has no
+ * atomic compare-and-swap, so a concurrent writer landing between the
+ * `previous` read and our `set`/`remove` will silently make `previous`
+ * stale. Subscribers that need a strict before/after audit must re-read
+ * the authoritative store inside a transaction.
  */
 final class AuditedSettingsManager extends AbstractSettingsManager
 {

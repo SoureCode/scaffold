@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Bundle\RemovableBundle\Tests;
+namespace SoureCode\Bundle\AuthorableBundle\Tests;
 
 use PHPUnit\Framework\TestCase;
 
@@ -17,7 +17,7 @@ final class AuthorProviderNullOnInvalidTest extends TestCase
         self::assertStringContainsString(
             "service(AuthorProviderInterface::class)->nullOnInvalid()",
             $source,
-            'RemovableBundle must wire AuthorProviderInterface with nullOnInvalid() so a missing/broken provider does not break boot — Remover treats a null provider as "no author".',
+            'AuthorableBundle must wire AuthorableDeletionMarkerProvider\'s AuthorProviderInterface with nullOnInvalid() so a missing/broken provider does not break boot — the provider treats a null author as "no stamping".',
         );
     }
 }

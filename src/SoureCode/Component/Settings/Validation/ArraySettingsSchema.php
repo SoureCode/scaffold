@@ -9,6 +9,12 @@ namespace SoureCode\Component\Settings\Validation;
  * (the same names you'd write in a declare statement: "string", "int",
  * "bool", "float", "array", "null") and an optional validator callable.
  *
+ * Validator callable contract: throw `\InvalidArgumentException` (or any
+ * subclass) to reject a value. The schema does NOT trap thrown
+ * exceptions, so a `RuntimeException` or other type will propagate to the
+ * caller of `SettingsManager::set()` unchanged. Callers that want a
+ * uniform error type should wrap their validators themselves.
+ *
  * @phpstan-type Rule array{type?: string, validator?: callable(mixed):void, required?: bool}
  */
 final class ArraySettingsSchema implements SettingsSchemaInterface

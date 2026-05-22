@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\VersionableBundle;
 
+use Doctrine\ORM\Events;
+use Doctrine\ORM\Tools\ToolEvents;
+use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedListenerRegistrar;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -36,22 +39,13 @@ final class VersionableBundle extends AbstractBundle
     {
         $container->import(__DIR__ . '/config/services.php');
 
-        $builder->getDefinition(VersionableListener::class)
-            ->clearTag('doctrine.event_listener')
-            ->addTag('doctrine.event_listener', [
-                'event' => 'onFlush',
-                'priority' => $config['listener_priorities']['on_flush'],
-            ])
-            ->addTag('doctrine.event_listener', [
-                'event' => 'postFlush',
-                'priority' => $config['listener_priorities']['post_flush'],
-            ]);
+        PrioritizedListenerRegistrar::register($builder, VersionableListener::class, [
+            Events::onFlush => $config['listener_priorities']['on_flush'],
+            Events::postFlush => $config['listener_priorities']['post_flush'],
+        ]);
 
-        $builder->getDefinition(VersionableSchemaListener::class)
-            ->clearTag('doctrine.event_listener')
-            ->addTag('doctrine.event_listener', [
-                'event' => 'postGenerateSchema',
-                'priority' => $config['listener_priorities']['post_generate_schema'],
-            ]);
+        PrioritizedListenerRegistrar::register($builder, VersionableSchemaListener::class, [
+            ToolEvents::postGenerateSchema => $config['listener_priorities']['post_generate_schema'],
+        ]);
     }
 }

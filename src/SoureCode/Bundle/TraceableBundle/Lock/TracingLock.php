@@ -6,17 +6,23 @@ namespace SoureCode\Bundle\TraceableBundle\Lock;
 
 use Psr\Log\LoggerInterface;
 use SoureCode\Component\Traceable\TraceContextHolder;
-use Symfony\Component\Lock\LockInterface;
+use Symfony\Component\Lock\SharedLockInterface;
 
 /**
- * Wraps a `Symfony\Component\Lock\LockInterface` and tags each acquire /
+ * Wraps a `Symfony\Component\Lock\SharedLockInterface` and tags each acquire /
  * release with the current trace id so contention shows up in the log
  * stream alongside the requesting trace.
+ *
+ * Logging asymmetry: only `acquire()` and `release()` emit log records.
+ * `acquireRead()`, `refresh()`, `isAcquired()`, `getRemainingLifetime()`,
+ * and `isExpired()` proxy silently — they do not change ownership and
+ * would otherwise drown the trace stream with noise during a single
+ * critical section. If you need them logged, decorate this class further.
  */
-final class TracingLock implements LockInterface
+final class TracingLock implements SharedLockInterface
 {
     public function __construct(
-        private readonly LockInterface $inner,
+        private readonly SharedLockInterface $inner,
         private readonly string $resource,
         private readonly TraceContextHolder $holder,
         private readonly LoggerInterface $logger,

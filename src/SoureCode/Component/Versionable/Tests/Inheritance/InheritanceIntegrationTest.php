@@ -9,6 +9,7 @@ use Doctrine\DBAL\Tools\DsnParser;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
+use Doctrine\ORM\Mapping\UnderscoreNamingStrategy;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\ORM\Tools\ToolEvents;
@@ -34,6 +35,7 @@ final class InheritanceIntegrationTest extends TestCase
             isDevMode: true,
         );
         $config->enableNativeLazyObjects(true);
+        $config->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
 
         $dsnParser = new DsnParser(['sqlite' => 'pdo_sqlite']);
         $connection = DriverManager::getConnection(

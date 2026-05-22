@@ -53,11 +53,18 @@ final class SoftDeleteFilter extends SQLFilter
                     continue;
                 }
 
-                $columnName = $targetEntity->hasField($property->getName())
-                    ? $targetEntity->getColumnName($property->getName())
-                    : $property->getName();
+                $propertyName = $property->getName();
 
-                return $this->columnCache[$name] = $columnName;
+                // No registered Doctrine field mapping means the property
+                // is either embedded or otherwise not reachable as a flat
+                // column. Filtering by the raw property name would emit
+                // SQL referring to a column that does not exist, so treat
+                // it as "not filterable".
+                if (!isset($targetEntity->fieldMappings[$propertyName])) {
+                    return $this->columnCache[$name] = null;
+                }
+
+                return $this->columnCache[$name] = $targetEntity->getColumnName($propertyName);
             }
 
             $reflection = $reflection->getParentClass();

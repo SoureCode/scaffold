@@ -17,10 +17,10 @@ final class TimestampableMetadataFactoryTest extends TestCase
 
         $metadata = $factory->getMetadataFor(Note::class);
 
-        self::assertCount(1, $metadata->createdBindings);
-        self::assertCount(1, $metadata->updatedBindings);
-        self::assertSame('writtenAt', $metadata->createdBindings[0]->property->getName());
-        self::assertSame('editedAt', $metadata->updatedBindings[0]->property->getName());
+        self::assertCount(1, $metadata->getPersistBindings());
+        self::assertCount(1, $metadata->getUpdateBindings());
+        self::assertSame('writtenAt', $metadata->getPersistBindings()[0]->getProperty()->getName());
+        self::assertSame('editedAt', $metadata->getUpdateBindings()[0]->getProperty()->getName());
     }
 
     public function testFindsAttributePropertiesOnTrait(): void
@@ -29,8 +29,8 @@ final class TimestampableMetadataFactoryTest extends TestCase
 
         $metadata = $factory->getMetadataFor(Article::class);
 
-        self::assertSame('createdAt', $metadata->createdBindings[0]->property->getName());
-        self::assertSame('updatedAt', $metadata->updatedBindings[0]->property->getName());
+        self::assertSame('createdAt', $metadata->getPersistBindings()[0]->getProperty()->getName());
+        self::assertSame('updatedAt', $metadata->getUpdateBindings()[0]->getProperty()->getName());
     }
 
     public function testReturnsEmptyMetadataForPlainClass(): void

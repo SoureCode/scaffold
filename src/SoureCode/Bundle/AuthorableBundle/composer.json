@@ -9,6 +9,7 @@
         "symfony/framework-bundle": "^8.0",
         "doctrine/doctrine-bundle": "^3.2",
         "sourecode/doctrine-extensions-bundle": "self.version",
+        "sourecode/removable-bundle": "self.version",
         "symfony/security-bundle": "^8.0"
     },
     "autoload": {

@@ -19,16 +19,17 @@ return static function (ContainerConfigurator $container): void {
     $services->set(TimestampFactory::class)
         ->args([service(ClockInterface::class)]);
 
+    // Listener tags are owned by TimestampableBundle::loadExtension via
+    // PrioritizedListenerRegistrar so listener priorities have one
+    // source of truth.
+
     $services->set(TimestampableListener::class)
         ->args([
             service(TimestampableMetadataFactory::class),
             service(TimestampFactory::class),
             service(ChangeSetMatcher::class),
-        ])
-        ->tag('doctrine.event_listener', ['event' => 'prePersist'])
-        ->tag('doctrine.event_listener', ['event' => 'onFlush']);
+        ]);
 
     $services->set(TimestampableMappingListener::class)
-        ->args([service(TimestampableMetadataFactory::class)])
-        ->tag('doctrine.event_listener', ['event' => 'loadClassMetadata']);
+        ->args([service(TimestampableMetadataFactory::class)]);
 };

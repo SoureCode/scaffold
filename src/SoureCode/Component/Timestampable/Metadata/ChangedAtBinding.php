@@ -12,11 +12,11 @@ final class ChangedAtBinding implements ChangeBindingInterface
      * @param list<string> $fields
      */
     public function __construct(
-        public readonly \ReflectionProperty $property,
-        public readonly array $fields,
-        public readonly bool $matchValue,
-        public readonly mixed $value,
-        public readonly string $type,
+        private readonly \ReflectionProperty $property,
+        private readonly array $fields,
+        private readonly bool $matchValue,
+        private readonly mixed $value,
+        private readonly string $type,
     ) {
     }
 
@@ -38,5 +38,10 @@ final class ChangedAtBinding implements ChangeBindingInterface
     public function getValue(): mixed
     {
         return $this->value;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
     }
 }

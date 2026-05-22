@@ -15,10 +15,10 @@ final class TimestampableMetadata implements BehaviorMetadataInterface
      * @param list<DeletedAtBinding> $deletedBindings
      */
     public function __construct(
-        public readonly array $createdBindings,
-        public readonly array $updatedBindings,
-        public readonly array $changedBindings,
-        public readonly array $deletedBindings = [],
+        private readonly array $createdBindings,
+        private readonly array $updatedBindings,
+        private readonly array $changedBindings,
+        private readonly array $deletedBindings = [],
     ) {
     }
 

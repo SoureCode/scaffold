@@ -7,13 +7,18 @@ namespace SoureCode\Component\Timestampable\Metadata;
 final class DeletedAtBinding
 {
     public function __construct(
-        public readonly \ReflectionProperty $property,
-        public readonly string $type,
+        private readonly \ReflectionProperty $property,
+        private readonly string $type,
     ) {
     }
 
     public function getProperty(): \ReflectionProperty
     {
         return $this->property;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
     }
 }

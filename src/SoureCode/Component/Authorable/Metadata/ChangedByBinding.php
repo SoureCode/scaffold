@@ -12,10 +12,10 @@ final class ChangedByBinding implements ChangeBindingInterface
      * @param list<string> $fields
      */
     public function __construct(
-        public readonly \ReflectionProperty $property,
-        public readonly array $fields,
-        public readonly bool $matchValue,
-        public readonly mixed $value,
+        private readonly \ReflectionProperty $property,
+        private readonly array $fields,
+        private readonly bool $matchValue,
+        private readonly mixed $value,
     ) {
     }
 

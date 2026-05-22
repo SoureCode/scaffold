@@ -9,7 +9,7 @@ use SoureCode\Component\DoctrineExtensions\Metadata\PersistBindingInterface;
 final class CreatedByBinding implements PersistBindingInterface
 {
     public function __construct(
-        public readonly \ReflectionProperty $property,
+        private readonly \ReflectionProperty $property,
     ) {
     }
 

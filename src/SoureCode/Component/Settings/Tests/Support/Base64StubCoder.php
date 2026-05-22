@@ -8,6 +8,11 @@ use SoureCode\Component\Settings\Encryption\SensitiveValueCoderInterface;
 
 final class Base64StubCoder implements SensitiveValueCoderInterface
 {
+    public function scheme(): string
+    {
+        return 'b64';
+    }
+
     public function encode(mixed $value): string
     {
         return base64_encode(serialize($value));

@@ -68,9 +68,25 @@ final class EnvOverrideFeatureFlagsManager extends AbstractFeatureFlagsManager
         return $this->inner->all();
     }
 
+    /**
+     * Translates a flag name into the env var an operator would set to
+     * override it. Uppercases the name and converts ".-" to "_", then
+     * prepends the configured prefix. Public so docs and tooling can show
+     * the exact env var to set instead of asking operators to read the
+     * source.
+     *
+     * Examples (with default prefix "FEATURE_"):
+     *   - "billing.beta-rates"  → "FEATURE_BILLING_BETA_RATES"
+     *   - "checkout.v2"         → "FEATURE_CHECKOUT_V2"
+     */
+    public function envKeyFor(string $name): string
+    {
+        return $this->prefix . strtoupper(strtr($name, '.-', '__'));
+    }
+
     private function resolveOverride(string $name): ?bool
     {
-        $key = $this->prefix . strtoupper(strtr($name, '.-', '__'));
+        $key = $this->envKeyFor($name);
         $raw = getenv($key);
 
         if ($raw === false || $raw === '') {

@@ -40,8 +40,11 @@ final class AccessDeniedListener
             $this->recentAuthentication->setReturnPath($returnPath);
         }
 
-        $this->eventDispatcher?->dispatch(new RecentAuthRequiredEvent($request, $returnPath));
-
+        // Set the response BEFORE dispatching so subscribers can observe
+        // (or veto) the final redirect via $event->getResponse() /
+        // $event->setResponse().
         $event->setResponse($this->redirectStrategy->redirectForReauth($request, $returnPath));
+
+        $this->eventDispatcher?->dispatch(new RecentAuthRequiredEvent($request, $returnPath));
     }
 }

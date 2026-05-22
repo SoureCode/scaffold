@@ -11,6 +11,11 @@ use SoureCode\Component\DoctrineExtensions\Metadata\ChangeBindingInterface;
 final class ChangeSetMatcher
 {
     /**
+     * @var array<class-string, array<string, \ReflectionProperty|null>>
+     */
+    private array $propertyCache = [];
+
+    /**
      * @template T of object
      *
      * @param T $entity
@@ -88,7 +93,11 @@ final class ChangeSetMatcher
                     continue;
                 }
 
-                if ($this->matchesPath($binding, $tail, $element, $unitOfWork, clone $visited)) {
+                // Share $visited across siblings: cloning per element used
+                // to defeat the cycle guard (siblings could walk back into
+                // an in-flight relative) and allocated a fresh
+                // SplObjectStorage per element.
+                if ($this->matchesPath($binding, $tail, $element, $unitOfWork, $visited)) {
                     return true;
                 }
             }
@@ -131,24 +140,30 @@ final class ChangeSetMatcher
 
     /**
      * Walks the class hierarchy and returns the first `\ReflectionProperty`
-     * named `$name`, or `null` if no class in the chain declares it.
-     * Shared with `AbstractFlushListener::walkPath`.
+     * named `$name`, or `null` if no class in the chain declares it. The
+     * result is memoized: `walkPath`/`matchesPath` call this for every
+     * binding match inside `onFlush`, so re-running reflection per call
+     * adds up fast on hot paths.
      *
      * @param class-string $class
      */
     public function findProperty(string $class, string $name): ?\ReflectionProperty
     {
+        if (array_key_exists($name, $this->propertyCache[$class] ?? [])) {
+            return $this->propertyCache[$class][$name];
+        }
+
         $reflection = new \ReflectionClass($class);
 
         do {
             if ($reflection->hasProperty($name)) {
-                return $reflection->getProperty($name);
+                return $this->propertyCache[$class][$name] = $reflection->getProperty($name);
             }
 
             $reflection = $reflection->getParentClass();
         } while ($reflection !== false);
 
-        return null;
+        return $this->propertyCache[$class][$name] = null;
     }
 
     private function valuesEqual(mixed $actual, mixed $expected): bool

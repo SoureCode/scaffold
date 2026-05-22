@@ -51,7 +51,7 @@
             <directory>src/SoureCode/Bundle/VersionableBundle/Tests</directory>
         </testsuite>
     </testsuites>
-    <source>
+    <source ignoreIndirectDeprecations="true">
         <include>
             <directory>src/SoureCode/Component</directory>
             <directory>src/SoureCode/Bundle</directory>

@@ -42,8 +42,11 @@ final class PercentageRolloutGate implements FeatureGateInterface
 
         $userId = $context['user_id'] ?? null;
 
+        // No user identifier means we cannot deterministically place the
+        // request in a bucket. Abstain (null) so the manager falls through
+        // to the stored boolean instead of issuing a blanket deny.
         if ($userId === null) {
-            return false;
+            return null;
         }
 
         $bucket = crc32($name . ':' . (string) $userId) % 100;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use SoureCode\Bundle\VersionableBundle\Security\Voter\VersionableVoter;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
-use SoureCode\Bundle\VersionableBundle\Security\Voter\VersionableVoter;
 use SoureCode\Component\Versionable\Messenger\PruneVersionableHistoryHandler;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Versioner;
@@ -21,18 +21,19 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set(VersionableMetadataFactory::class);
 
+    // Doctrine event listener tags for VersionableListener and
+    // VersionableSchemaListener live exclusively in VersionableBundle::loadExtension
+    // so listener priorities have a single source of truth.
+
     $services->set(VersionableListener::class)
         ->args([
             service(VersionableMetadataFactory::class),
             service(ClockInterface::class),
             service(LoggerInterface::class)->nullOnInvalid(),
-        ])
-        ->tag('doctrine.event_listener', ['event' => 'onFlush'])
-        ->tag('doctrine.event_listener', ['event' => 'postFlush']);
+        ]);
 
     $services->set(VersionableSchemaListener::class)
-        ->args([service(VersionableMetadataFactory::class)])
-        ->tag('doctrine.event_listener', ['event' => 'postGenerateSchema']);
+        ->args([service(VersionableMetadataFactory::class)]);
 
     $services->set(Versioner::class)
         ->args([

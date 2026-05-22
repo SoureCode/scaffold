@@ -7,6 +7,24 @@ namespace SoureCode\Component\Settings\Manager;
 use Doctrine\Common\Collections\Collection;
 use SoureCode\Component\Settings\Model\SettingInterface;
 
+/**
+ * Read/write surface for the settings store. Decorators implement this
+ * to add cross-cutting behaviour (cache, encryption, audit, validation).
+ *
+ * Decorator ordering matters and is the host's responsibility. Two rules
+ * the toolkit treats as load-bearing:
+ *   - `CachedSettingsManager` MUST wrap `EncryptingSettingsManager`, not
+ *     the other way around. Caching plaintext defeats the point of
+ *     encryption-at-rest, and the cache invalidates per-key so a wrong
+ *     ordering would persist encrypted blobs in memory.
+ *   - `AuditedSettingsManager` MUST sit above the persistence layer so
+ *     the events it emits reflect the canonical store, not a cached
+ *     copy.
+ *
+ * The shipped Symfony bundle wires the stack as
+ * `Cached → Audited → Encrypting → Doctrine`; custom assemblies must
+ * preserve those two ordering rules.
+ */
 interface SettingsManagerInterface
 {
     public function get(string $key, mixed $default = null): mixed;

@@ -9,15 +9,20 @@ use SoureCode\Component\DoctrineExtensions\Metadata\UpdateBindingInterface;
 final class UpdatedAtBinding implements UpdateBindingInterface
 {
     public function __construct(
-        public readonly \ReflectionProperty $property,
-        public readonly string $type,
-        public readonly bool $nullable,
+        private readonly \ReflectionProperty $property,
+        private readonly string $type,
+        private readonly bool $nullable,
     ) {
     }
 
     public function getProperty(): \ReflectionProperty
     {
         return $this->property;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
     }
 
     public function isNullable(): bool

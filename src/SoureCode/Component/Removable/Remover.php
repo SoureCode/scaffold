@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Removable;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
-use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\Timestampable\Metadata\TimestampableMetadataFactory;
 
 final class Remover implements RemoverInterface
 {
+    /**
+     * @param iterable<DeletionMarkerProviderInterface> $markerProviders
+     */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
         private readonly TimestampableMetadataFactory $timestampableMetadata,
-        private readonly AuthorableMetadataFactory $authorableMetadata,
-        private readonly ?AuthorProviderInterface $authorProvider = null,
+        private readonly iterable $markerProviders = [],
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -93,16 +95,24 @@ final class Remover implements RemoverInterface
         }
 
         $classMetadata = $this->entityManager->getClassMetadata($entityClass);
-        $deletedFieldName = $deletedAtBindings[0]->getProperty()->getName();
-        $deletedColumn = $classMetadata->hasField($deletedFieldName)
-            ? $classMetadata->getColumnName($deletedFieldName)
-            : $deletedFieldName;
+        $deletedColumn = $this->resolveDeletedAtColumn($classMetadata, $deletedAtBindings[0]->getProperty()->getName());
+
+        if ($deletedColumn === null) {
+            throw new \LogicException(\sprintf(
+                'Entity "%s" #[DeletedAt] property is not a registered Doctrine field — cannot purge.',
+                $entityClass,
+            ));
+        }
 
         $queryBuilder = $this->entityManager->getConnection()->createQueryBuilder()
             ->delete($classMetadata->getTableName())
             ->where(\sprintf('%s IS NOT NULL', $deletedColumn))
             ->andWhere(\sprintf('%s < :cutoff', $deletedColumn))
-            ->setParameter('cutoff', \DateTimeImmutable::createFromInterface($olderThan)->format('Y-m-d H:i:s'));
+            ->setParameter(
+                'cutoff',
+                \DateTimeImmutable::createFromInterface($olderThan),
+                Types::DATETIME_IMMUTABLE,
+            );
 
         $affected = (int) $queryBuilder->executeStatement();
 
@@ -111,6 +121,22 @@ final class Remover implements RemoverInterface
         }
 
         return $affected;
+    }
+
+    /**
+     * Single source of truth shared with `SoftDeleteFilter`: resolve the
+     * SQL column for a `#[DeletedAt]` property strictly through Doctrine's
+     * field mapping. Absence of a mapping means the property is embedded
+     * or otherwise not reachable as a flat column — return null so the
+     * caller decides what to do.
+     */
+    private function resolveDeletedAtColumn(ClassMetadata $classMetadata, string $propertyName): ?string
+    {
+        if (!isset($classMetadata->fieldMappings[$propertyName])) {
+            return null;
+        }
+
+        return $classMetadata->getColumnName($propertyName);
     }
 
     /**
@@ -137,14 +163,8 @@ final class Remover implements RemoverInterface
             $binding->getProperty()->setValue($entity, $now);
         }
 
-        $author = $this->authorProvider?->getCurrentAuthor();
-
-        if ($author === null) {
-            return;
-        }
-
-        foreach ($this->authorableMetadata->getMetadataFor($entity::class)->getDeletedBindings() as $binding) {
-            $binding->getProperty()->setValue($entity, $author);
+        foreach ($this->markerProviders as $provider) {
+            $provider->fillDeletionMarkers($entity);
         }
     }
 
@@ -183,8 +203,8 @@ final class Remover implements RemoverInterface
             );
         }
 
-        foreach ($this->authorableMetadata->getMetadataFor($entity::class)->getDeletedBindings() as $binding) {
-            $binding->getProperty()->setValue($entity, null);
+        foreach ($this->markerProviders as $provider) {
+            $provider->clearDeletionMarkers($entity);
         }
     }
 }

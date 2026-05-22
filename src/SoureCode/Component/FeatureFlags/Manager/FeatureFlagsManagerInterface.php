@@ -4,32 +4,11 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\FeatureFlags\Manager;
 
-use Doctrine\Common\Collections\Collection;
-use SoureCode\Component\FeatureFlags\Model\FeatureFlagInterface;
-
-interface FeatureFlagsManagerInterface
+/**
+ * Convenience union of {@see FeatureFlagsReaderInterface} and
+ * {@see FeatureFlagsWriterInterface} for managers that expose both halves
+ * of the contract.
+ */
+interface FeatureFlagsManagerInterface extends FeatureFlagsReaderInterface, FeatureFlagsWriterInterface
 {
-    public function isEnabled(string $name): bool;
-
-    /**
-     * Convenience overload that consults gates configured with the manager
-     * (percentage rollout, allow-list, time-window, …). Implementations that
-     * do not support gates fall back to {@see isEnabled()}.
-     *
-     * @param array<string, mixed> $context arbitrary hints ("user_id", "tenant", …)
-     */
-    public function isEnabledFor(string $name, array $context = []): bool;
-
-    public function has(string $name): bool;
-
-    public function enable(string $name): void;
-
-    public function disable(string $name): void;
-
-    public function remove(string $name): void;
-
-    /**
-     * @return Collection<string, FeatureFlagInterface>
-     */
-    public function all(): Collection;
 }

@@ -16,11 +16,11 @@ final class AuthorableMetadata implements BehaviorMetadataInterface
      * @param list<ImpersonatedByBinding> $impersonatedBindings
      */
     public function __construct(
-        public readonly array $createdBindings,
-        public readonly array $updatedBindings,
-        public readonly array $changedBindings,
-        public readonly array $deletedBindings = [],
-        public readonly array $impersonatedBindings = [],
+        private readonly array $createdBindings,
+        private readonly array $updatedBindings,
+        private readonly array $changedBindings,
+        private readonly array $deletedBindings = [],
+        private readonly array $impersonatedBindings = [],
     ) {
     }
 

@@ -8,6 +8,8 @@ use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
 use SoureCode\Component\Authorable\Author\ImpersonatorProviderInterface;
 use SoureCode\Component\Authorable\EventListener\AuthorableListener;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
+use SoureCode\Component\Authorable\EventListener\ImpersonatorListener;
+use SoureCode\Component\Authorable\Removable\AuthorableDeletionMarkerProvider;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
 use SoureCode\Component\DoctrineExtensions\ChangeSet\ChangeSetMatcher;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -31,18 +33,30 @@ return static function (ContainerConfigurator $container): void {
 
     $services->alias(ImpersonatorProviderInterface::class, SecurityImpersonatorProvider::class);
 
+    // Listener tags are owned by AuthorableBundle::loadExtension via
+    // PrioritizedListenerRegistrar so listener priorities have one
+    // source of truth.
+
     $services->set(AuthorableListener::class)
         ->args([
             service(AuthorProviderInterface::class),
             service(AuthorableMetadataFactory::class),
             service(ChangeSetMatcher::class),
+        ]);
+
+    $services->set(ImpersonatorListener::class)
+        ->args([
             service(ImpersonatorProviderInterface::class)->nullOnInvalid(),
-        ])
-        ->tag('doctrine.event_listener', ['event' => 'prePersist'])
-        ->tag('doctrine.event_listener', ['event' => 'onFlush']);
+            service(AuthorableMetadataFactory::class),
+        ]);
 
     $services->set(AuthorableMappingListener::class)
         ->arg('$metadataFactory', service(AuthorableMetadataFactory::class))
-        ->arg('$userClass', null)
-        ->tag('doctrine.event_listener', ['event' => 'loadClassMetadata']);
+        ->arg('$userClass', null);
+
+    $services->set(AuthorableDeletionMarkerProvider::class)
+        ->args([
+            service(AuthorableMetadataFactory::class),
+            service(AuthorProviderInterface::class)->nullOnInvalid(),
+        ]);
 };

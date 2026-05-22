@@ -58,6 +58,29 @@ public function changeEmail(): Response { … }
 - The marker has a hard TTL; calls to a protected route do not extend it.
 - `isActive()` is `false` on stateless / sub-requests.
 
+## Host responsibilities
+
+The bundle ships only the gate (the voter), the session bookkeeping, and the redirect-on-denied wiring. The host application owns the actual re-authentication flow. A working wiring looks like this:
+
+1. **Expose a `login_route`** — any controller/firewall combination that asks the user to confirm credentials. The bundle redirects to this route via `RouteRedirectStrategy` and forwards the original URI as `_target_path` (configurable on the strategy).
+2. **Mark the session on success** — when the host's controller confirms the password, call `RecentAuthentication::mark()`. Symfony's standard form login already emits `LoginSuccessEvent`, which the bundle listens to and marks for you. A manual confirm-password page must call `mark()` itself.
+3. **Bounce the user back** — read `RecentAuthentication::takeReturnPath()` (or `_target_path`) after `mark()` and redirect there.
+
+```php
+public function confirmPassword(Request $request, RecentAuthentication $recent): Response
+{
+    // … validate the submitted password against the current user …
+
+    $recent->mark();
+
+    return new RedirectResponse(
+        $recent->takeReturnPath() ?? $request->get('_target_path') ?? $this->generateUrl('home'),
+    );
+}
+```
+
+If you serve a JSON API, implement your own `RedirectStrategyInterface` that returns a 401 with the bounce URL in the body, and wire it as the `sourecode.recent_authentication.redirect_strategy` service.
+
 ### Manual mark
 
 Use when running a dedicated "confirm password" form:

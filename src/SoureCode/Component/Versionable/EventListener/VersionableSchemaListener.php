@@ -39,7 +39,7 @@ final class VersionableSchemaListener
             // re-hydrating the right subclass on restore.
             $rootMetadata = $this->resolveRootMetadata($classMetadata, $metadataFactoryDoctrine);
 
-            $this->createVersionTable($schema, $rootMetadata, $metadata->bindings, $metadataFactoryDoctrine);
+            $this->createVersionTable($schema, $rootMetadata, $classMetadata, $metadata->bindings, $metadataFactoryDoctrine);
         }
     }
 
@@ -59,40 +59,41 @@ final class VersionableSchemaListener
      */
     private function createVersionTable(
         Schema $schema,
+        ClassMetadata $rootMetadata,
         ClassMetadata $sourceMetadata,
         array $bindings,
         ClassMetadataFactory $doctrineFactory,
     ): void {
-        $sourceTable = $sourceMetadata->getTableName();
-        $versionTableName = VersionableMetadataFactory::versionTableName($sourceTable);
+        $sourceTable = $rootMetadata->getTableName();
+        $versionTableName = $this->metadataFactory->versionTableName($sourceTable);
 
         if ($schema->hasTable($versionTableName)) {
             $versionTable = $schema->getTable($versionTableName);
         } else {
             $versionTable = $schema->createTable($versionTableName);
 
-            $versionTable->addColumn('id', Types::INTEGER, ['autoincrement' => true, 'notnull' => true]);
-            $versionTable->setPrimaryKey(['id']);
+            $versionTable->addColumn(VersionTableColumns::ID, Types::INTEGER, ['autoincrement' => true, 'notnull' => true]);
+            $versionTable->setPrimaryKey([VersionTableColumns::ID]);
 
-            $sourceIdField = $sourceMetadata->getSingleIdentifierFieldName();
-            $sourceIdMapping = $sourceMetadata->getFieldMapping($sourceIdField);
+            $sourceIdField = $rootMetadata->getSingleIdentifierFieldName();
+            $sourceIdMapping = $rootMetadata->getFieldMapping($sourceIdField);
 
-            $versionTable->addColumn('entity_id', $sourceIdMapping->type, ['notnull' => true]);
+            $versionTable->addColumn(VersionTableColumns::ENTITY_ID, $sourceIdMapping->type, ['notnull' => true]);
             $versionTable->addForeignKeyConstraint(
                 $sourceTable,
-                ['entity_id'],
-                [$sourceMetadata->getColumnName($sourceIdField)],
+                [VersionTableColumns::ENTITY_ID],
+                [$rootMetadata->getColumnName($sourceIdField)],
                 ['onDelete' => 'CASCADE'],
             );
-            $versionTable->addIndex(['entity_id']);
+            $versionTable->addIndex([VersionTableColumns::ENTITY_ID]);
 
-            $versionTable->addColumn('version', Types::INTEGER, ['notnull' => true]);
-            $versionTable->addUniqueIndex(['entity_id', 'version']);
+            $versionTable->addColumn(VersionTableColumns::VERSION, Types::INTEGER, ['notnull' => true]);
+            $versionTable->addUniqueIndex([VersionTableColumns::ENTITY_ID, VersionTableColumns::VERSION]);
 
-            $versionTable->addColumn('created_at', Types::DATETIMETZ_IMMUTABLE, ['notnull' => true]);
+            $versionTable->addColumn(VersionTableColumns::CREATED_AT, Types::DATETIMETZ_IMMUTABLE, ['notnull' => true]);
 
-            if ($sourceMetadata->discriminatorColumn !== null) {
-                $discriminator = $sourceMetadata->discriminatorColumn;
+            if ($rootMetadata->discriminatorColumn !== null) {
+                $discriminator = $rootMetadata->discriminatorColumn;
                 $versionTable->addColumn(
                     $discriminator['name'],
                     $discriminator['type'] ?? 'string',
@@ -104,14 +105,20 @@ final class VersionableSchemaListener
         foreach ($bindings as $binding) {
             $fieldName = $binding->property->getName();
 
-            if ($sourceMetadata->hasField($fieldName)) {
-                $this->addScalarFieldColumn($versionTable, $sourceMetadata, $fieldName);
+            // Embeddable check first: ClassMetadata::hasField() returns true
+            // for embedded parents too, so it cannot discriminate scalar vs
+            // embedded by itself.
+            if (isset($sourceMetadata->embeddedClasses[$fieldName])) {
+                $this->addEmbeddedColumns($versionTable, $sourceMetadata, $fieldName);
 
                 continue;
             }
 
-            if (isset($sourceMetadata->embeddedClasses[$fieldName])) {
-                $this->addEmbeddedColumns($versionTable, $sourceMetadata, $fieldName);
+            // STI: only the subclass metadata carries subclass-only field
+            // mappings; the root metadata does not. Look up the field on the
+            // metadata that declared it.
+            if (isset($sourceMetadata->fieldMappings[$fieldName])) {
+                $this->addScalarFieldColumn($versionTable, $sourceMetadata, $fieldName);
 
                 continue;
             }
@@ -189,13 +196,17 @@ final class VersionableSchemaListener
         $targetIdField = $targetMetadata->getSingleIdentifierFieldName();
         $targetIdType = $targetMetadata->getFieldMapping($targetIdField)->type;
 
-        $columnName = $fieldName . '_id';
+        $columnName = $fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX;
+
+        if ($table->hasColumn($columnName)) {
+            return;
+        }
 
         $table->addColumn($columnName, $targetIdType, ['notnull' => false]);
         $table->addIndex([$columnName]);
 
         if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
-            $table->addColumn($fieldName . '_version', Types::INTEGER, ['notnull' => false]);
+            $table->addColumn($fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX, Types::INTEGER, ['notnull' => false]);
         }
     }
 
@@ -218,15 +229,20 @@ final class VersionableSchemaListener
         }
 
         $joinTable = $schema->createTable($joinTableName);
-        $joinTable->addColumn('version_id', Types::INTEGER, ['notnull' => true]);
-        $joinTable->addColumn('position', Types::INTEGER, ['notnull' => true]);
-        $joinTable->addColumn('target_id', $targetIdType, ['notnull' => true]);
-        $joinTable->setPrimaryKey(['version_id', 'position']);
-        $joinTable->addForeignKeyConstraint($versionTableName, ['version_id'], ['id'], ['onDelete' => 'CASCADE']);
-        $joinTable->addIndex(['target_id']);
+        $joinTable->addColumn(VersionTableColumns::JOIN_VERSION_ID, Types::INTEGER, ['notnull' => true]);
+        $joinTable->addColumn(VersionTableColumns::JOIN_POSITION, Types::INTEGER, ['notnull' => true]);
+        $joinTable->addColumn(VersionTableColumns::JOIN_TARGET_ID, $targetIdType, ['notnull' => true]);
+        $joinTable->setPrimaryKey([VersionTableColumns::JOIN_VERSION_ID, VersionTableColumns::JOIN_POSITION]);
+        $joinTable->addForeignKeyConstraint(
+            $versionTableName,
+            [VersionTableColumns::JOIN_VERSION_ID],
+            [VersionTableColumns::ID],
+            ['onDelete' => 'CASCADE'],
+        );
+        $joinTable->addIndex([VersionTableColumns::JOIN_TARGET_ID]);
 
         if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
-            $joinTable->addColumn('target_version', Types::INTEGER, ['notnull' => false]);
+            $joinTable->addColumn(VersionTableColumns::JOIN_TARGET_VERSION, Types::INTEGER, ['notnull' => false]);
         }
     }
 }

@@ -19,6 +19,18 @@ final class Traceparent
 
     public const int FLAG_SAMPLED = 0x01;
 
+    /**
+     * W3C-mandated byte counts for the trace id and parent (span) id.
+     * Surfaced as constants so a future "make them the same length"
+     * refactor cannot quietly break interop with other tracing systems.
+     */
+    public const int TRACE_ID_BYTES = 16;
+    public const int SPAN_ID_BYTES = 8;
+
+    private const int TRACE_ID_HEX_LENGTH = self::TRACE_ID_BYTES * 2;
+    private const int SPAN_ID_HEX_LENGTH = self::SPAN_ID_BYTES * 2;
+    private const int FLAGS_HEX_LENGTH = 2;
+
     private function __construct(
         public readonly string $traceId,
         public readonly string $parentId,
@@ -40,15 +52,15 @@ final class Traceparent
             return null;
         }
 
-        if (!self::isHexOfLength($traceId, 32) || $traceId === str_repeat('0', 32)) {
+        if (!self::isHexOfLength($traceId, self::TRACE_ID_HEX_LENGTH) || $traceId === str_repeat('0', self::TRACE_ID_HEX_LENGTH)) {
             return null;
         }
 
-        if (!self::isHexOfLength($parentId, 16) || $parentId === str_repeat('0', 16)) {
+        if (!self::isHexOfLength($parentId, self::SPAN_ID_HEX_LENGTH) || $parentId === str_repeat('0', self::SPAN_ID_HEX_LENGTH)) {
             return null;
         }
 
-        if (!self::isHexOfLength($flags, 2)) {
+        if (!self::isHexOfLength($flags, self::FLAGS_HEX_LENGTH)) {
             return null;
         }
 
@@ -58,8 +70,8 @@ final class Traceparent
     public static function generate(int $flags = 0): self
     {
         return new self(
-            self::randomHex(16),
-            self::randomHex(8),
+            self::randomHex(self::TRACE_ID_BYTES),
+            self::randomHex(self::SPAN_ID_BYTES),
             $flags,
         );
     }

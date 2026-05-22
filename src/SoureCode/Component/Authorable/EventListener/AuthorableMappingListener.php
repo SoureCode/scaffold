@@ -19,6 +19,14 @@ final class AuthorableMappingListener
     ) {
     }
 
+    /**
+     * Nullability rules per binding kind:
+     *   - #[CreatedBy]: always nullable=false; the row is stamped on insert and cannot revert to null.
+     *   - #[UpdatedBy]: nullability comes from the binding itself, so the attribute author can
+     *                   model "may be unset on first persist" via the attribute.
+     *   - #[ChangedBy] / #[DeletedBy]: always nullable=true; these are populated lazily by a
+     *                   field-watch or soft-delete and there is no clean default value before that.
+     */
     public function loadClassMetadata(LoadClassMetadataEventArgs $args): void
     {
         $classMetadata = $args->getClassMetadata();
@@ -28,20 +36,20 @@ final class AuthorableMappingListener
             return;
         }
 
-        foreach ($metadata->createdBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property, false);
+        foreach ($metadata->getPersistBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty(), false);
         }
 
-        foreach ($metadata->updatedBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property, $binding->nullable);
+        foreach ($metadata->getUpdateBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty(), $binding->isNullable());
         }
 
-        foreach ($metadata->changedBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property, true);
+        foreach ($metadata->getChangeBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty(), true);
         }
 
-        foreach ($metadata->deletedBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property, true);
+        foreach ($metadata->getDeletedBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty(), true);
         }
     }
 

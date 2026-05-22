@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\AuthorableBundle;
 
+use Doctrine\ORM\Events;
 use SoureCode\Bundle\AuthorableBundle\Security\SecurityAuthorProvider;
+use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedListenerRegistrar;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
 use SoureCode\Component\Authorable\EventListener\AuthorableListener;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
+use SoureCode\Component\Authorable\EventListener\ImpersonatorListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -59,22 +62,17 @@ final class AuthorableBundle extends AbstractBundle
                 ->setArgument('$userClass', $config['user_class']);
         }
 
-        $builder->getDefinition(AuthorableListener::class)
-            ->clearTag('doctrine.event_listener')
-            ->addTag('doctrine.event_listener', [
-                'event' => 'prePersist',
-                'priority' => $config['listener_priorities']['pre_persist'],
-            ])
-            ->addTag('doctrine.event_listener', [
-                'event' => 'onFlush',
-                'priority' => $config['listener_priorities']['on_flush'],
-            ]);
+        PrioritizedListenerRegistrar::register($builder, AuthorableListener::class, [
+            Events::prePersist => $config['listener_priorities']['pre_persist'],
+            Events::onFlush => $config['listener_priorities']['on_flush'],
+        ]);
 
-        $builder->getDefinition(AuthorableMappingListener::class)
-            ->clearTag('doctrine.event_listener')
-            ->addTag('doctrine.event_listener', [
-                'event' => 'loadClassMetadata',
-                'priority' => $config['listener_priorities']['load_class_metadata'],
-            ]);
+        PrioritizedListenerRegistrar::register($builder, ImpersonatorListener::class, [
+            Events::prePersist => $config['listener_priorities']['pre_persist'],
+        ]);
+
+        PrioritizedListenerRegistrar::register($builder, AuthorableMappingListener::class, [
+            Events::loadClassMetadata => $config['listener_priorities']['load_class_metadata'],
+        ]);
     }
 }

@@ -7,7 +7,7 @@ namespace SoureCode\Component\Authorable\Metadata;
 final class ImpersonatedByBinding
 {
     public function __construct(
-        public readonly \ReflectionProperty $property,
+        private readonly \ReflectionProperty $property,
     ) {
     }
 

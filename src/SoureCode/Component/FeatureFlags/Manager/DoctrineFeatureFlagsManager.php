@@ -12,6 +12,7 @@ use Doctrine\ORM\EntityRepository;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use SoureCode\Component\FeatureFlags\Event\FeatureFlagRemovedEvent;
 use SoureCode\Component\FeatureFlags\Event\FeatureFlagToggledEvent;
+use SoureCode\Component\FeatureFlags\Event\NullEventDispatcher;
 use SoureCode\Component\FeatureFlags\Factory\FeatureFlagFactoryInterface;
 use SoureCode\Component\FeatureFlags\Model\FeatureFlagInterface;
 
@@ -29,7 +30,7 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
         private readonly EntityManagerInterface $entityManager,
         private readonly string $featureFlagEntityClassName,
         private readonly FeatureFlagFactoryInterface $featureFlagFactory,
-        private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly EventDispatcherInterface $eventDispatcher = new NullEventDispatcher(),
     ) {
         $this->featureFlagRepository = $this->entityManager->getRepository($this->featureFlagEntityClassName);
     }
@@ -77,7 +78,7 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
         $this->entityManager->remove($flag);
         $this->entityManager->flush();
 
-        $this->eventDispatcher?->dispatch(new FeatureFlagRemovedEvent($name));
+        $this->eventDispatcher->dispatch(new FeatureFlagRemovedEvent($name));
     }
 
     public function all(): Collection
@@ -100,7 +101,7 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
         if ($flag !== null) {
             $flag->setEnabled($enabled);
             $this->entityManager->flush();
-            $this->eventDispatcher?->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: false));
+            $this->eventDispatcher->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: false));
 
             return;
         }
@@ -108,13 +109,21 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
         // Race: another writer may insert the same primary key between our
         // find() and flush(). Retry once after refreshing — the unique
         // constraint on `name` is the source of truth.
+        //
+        // Conflict policy: LAST WRITE WINS. When the catch path fires, the
+        // racing writer has already committed some value; we re-apply our
+        // intended $enabled on top of whatever they wrote. This is a
+        // deliberate choice because the typical use case (an admin toggling
+        // a flag) wants the most recent intent to stick, not the first one.
+        // If you need compare-and-set, query first and skip the write when
+        // the existing value already matches.
         $flag = $this->featureFlagFactory->create($name);
         $flag->setEnabled($enabled);
         $this->entityManager->persist($flag);
 
         try {
             $this->entityManager->flush();
-            $this->eventDispatcher?->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: true));
+            $this->eventDispatcher->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: true));
         } catch (UniqueConstraintViolationException) {
             $this->entityManager->detach($flag);
 
@@ -129,7 +138,7 @@ final class DoctrineFeatureFlagsManager extends AbstractFeatureFlagsManager
 
             $existing->setEnabled($enabled);
             $this->entityManager->flush();
-            $this->eventDispatcher?->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: false));
+            $this->eventDispatcher->dispatch(new FeatureFlagToggledEvent($name, $enabled, created: false));
         }
     }
 }

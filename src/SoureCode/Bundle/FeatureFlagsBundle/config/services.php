@@ -11,15 +11,29 @@ use SoureCode\Bundle\FeatureFlagsBundle\Twig\FeatureFlagsExtension;
 use SoureCode\Component\FeatureFlags\Doctrine\FeatureFlagMappingDriver;
 use SoureCode\Component\FeatureFlags\Factory\FeatureFlagFactory;
 use SoureCode\Component\FeatureFlags\Factory\FeatureFlagFactoryInterface;
+use SoureCode\Component\FeatureFlags\Gate\CompositeFeatureGate;
+use SoureCode\Component\FeatureFlags\Gate\FeatureGateInterface;
 use SoureCode\Component\FeatureFlags\Manager\DoctrineFeatureFlagsManager;
 use SoureCode\Component\FeatureFlags\Manager\EnvOverrideFeatureFlagsManager;
 use SoureCode\Component\FeatureFlags\Manager\FeatureFlagsManagerInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
 return static function (ContainerConfigurator $container): void {
     $services = $container->services();
+
+    // Anyone implementing FeatureGateInterface is auto-collected; host
+    // apps add a gate by registering a service for it, no service-args
+    // edit required.
+    $services->instanceof(FeatureGateInterface::class)
+        ->tag('sourecode.feature_flags.gate');
+
+    $services->set(CompositeFeatureGate::class)
+        ->args([tagged_iterator('sourecode.feature_flags.gate')]);
+
+    $services->alias(FeatureGateInterface::class, CompositeFeatureGate::class);
 
     $services->set(FeatureFlagMappingDriver::class)
         ->args([

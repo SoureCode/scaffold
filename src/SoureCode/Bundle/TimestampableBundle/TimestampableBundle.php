@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SoureCode\Bundle\TimestampableBundle;
 
+use Doctrine\ORM\Events;
+use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedListenerRegistrar;
 use SoureCode\Component\Timestampable\EventListener\TimestampableListener;
 use SoureCode\Component\Timestampable\EventListener\TimestampableMappingListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -36,22 +38,13 @@ final class TimestampableBundle extends AbstractBundle
     {
         $container->import(__DIR__ . '/config/services.php');
 
-        $builder->getDefinition(TimestampableListener::class)
-            ->clearTag('doctrine.event_listener')
-            ->addTag('doctrine.event_listener', [
-                'event' => 'prePersist',
-                'priority' => $config['listener_priorities']['pre_persist'],
-            ])
-            ->addTag('doctrine.event_listener', [
-                'event' => 'onFlush',
-                'priority' => $config['listener_priorities']['on_flush'],
-            ]);
+        PrioritizedListenerRegistrar::register($builder, TimestampableListener::class, [
+            Events::prePersist => $config['listener_priorities']['pre_persist'],
+            Events::onFlush => $config['listener_priorities']['on_flush'],
+        ]);
 
-        $builder->getDefinition(TimestampableMappingListener::class)
-            ->clearTag('doctrine.event_listener')
-            ->addTag('doctrine.event_listener', [
-                'event' => 'loadClassMetadata',
-                'priority' => $config['listener_priorities']['load_class_metadata'],
-            ]);
+        PrioritizedListenerRegistrar::register($builder, TimestampableMappingListener::class, [
+            Events::loadClassMetadata => $config['listener_priorities']['load_class_metadata'],
+        ]);
     }
 }

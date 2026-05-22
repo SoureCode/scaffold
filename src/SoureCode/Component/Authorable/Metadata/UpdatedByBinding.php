@@ -9,8 +9,8 @@ use SoureCode\Component\DoctrineExtensions\Metadata\UpdateBindingInterface;
 final class UpdatedByBinding implements UpdateBindingInterface
 {
     public function __construct(
-        public readonly \ReflectionProperty $property,
-        public readonly bool $nullable,
+        private readonly \ReflectionProperty $property,
+        private readonly bool $nullable,
     ) {
     }
 

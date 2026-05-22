@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__);
 $rootFile = $root . '/composer.json';
-$packagesGlob = $root . '/src/*/*/*/composer.json';
+$srcRoot = $root . '/src';
 $checkOnly = in_array('--check', array_slice($argv, 1), true);
 
 if (!is_file($rootFile)) {
@@ -15,10 +15,39 @@ if (!is_file($rootFile)) {
 
 $rootJson = json_decode((string) file_get_contents($rootFile), true, flags: JSON_THROW_ON_ERROR);
 
-$packageFiles = glob($packagesGlob) ?: [];
+if (!isset($rootJson['require']['php'])) {
+    fwrite(STDERR, "root composer.json must declare a require.php constraint (single source of truth for the PHP baseline)\n");
+    exit(1);
+}
+
+$rootPhp = $rootJson['require']['php'];
+
+// Walk src/ recursively for any composer.json so a new package nested at a
+// different depth is picked up automatically instead of silently dropped.
+$packageFiles = [];
+
+if (is_dir($srcRoot)) {
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($srcRoot, FilesystemIterator::SKIP_DOTS),
+    );
+
+    foreach ($iterator as $fileInfo) {
+        if ($fileInfo->getFilename() !== 'composer.json') {
+            continue;
+        }
+
+        // Anything under a vendor/ tree belongs to a sub-install — skip it.
+        if (str_contains((string) $fileInfo->getPath(), DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR)) {
+            continue;
+        }
+
+        $packageFiles[] = (string) $fileInfo->getRealPath();
+    }
+}
+
 sort($packageFiles);
 
-$require = ['php' => $rootJson['require']['php'] ?? '>=8.5'];
+$require = ['php' => $rootPhp];
 $requireDev = [];
 $replace = [];
 $autoload = [];
@@ -37,6 +66,10 @@ foreach ($packageFiles as $file) {
 }
 
 $conflicts = [];
+$phpMismatches = [];
+// dep => list of versions seen, by bucket, per package, for the cross-bucket pass.
+$crossSeen = [];
+
 foreach ($packageFiles as $file) {
     $json = json_decode((string) file_get_contents($file), true, flags: JSON_THROW_ON_ERROR);
     $name = $json['name'];
@@ -45,9 +78,20 @@ foreach ($packageFiles as $file) {
 
     foreach (['require', 'require-dev'] as $section) {
         foreach ($json[$section] ?? [] as $dep => $version) {
-            if ($dep === 'php' || isset($packageNames[$dep])) {
+            if (isset($packageNames[$dep])) {
                 continue;
             }
+
+            if ($dep === 'php') {
+                if ($version !== $rootPhp) {
+                    $phpMismatches[] = "{$name}: {$version} (root: {$rootPhp})";
+                }
+
+                continue;
+            }
+
+            $crossSeen[$dep][$section][$name] = $version;
+
             $target = $section === 'require' ? 'require' : 'requireDev';
             $existing = $target === 'require' ? ($require[$dep] ?? null) : ($requireDev[$dep] ?? null);
             if ($existing !== null && $existing !== $version) {
@@ -73,9 +117,40 @@ foreach ($packageFiles as $file) {
     }
 }
 
+// Cross-bucket reconciliation: when the same dep appears in `require` in one
+// sub-package and `require-dev` in another, `require` wins at the root — a
+// hard requirement always dominates a test-only one — and the merged root
+// drops it from `require-dev`. Surface the demotion so the per-package
+// files can be cleaned up.
+$crossBucket = [];
+foreach ($crossSeen as $dep => $buckets) {
+    if (!isset($buckets['require'], $buckets['require-dev'])) {
+        continue;
+    }
+
+    $requirePackages = implode(', ', array_keys($buckets['require']));
+    $devPackages = implode(', ', array_keys($buckets['require-dev']));
+    $crossBucket[] = "{$dep}: require in [{$requirePackages}], require-dev in [{$devPackages}] — promoted to require";
+
+    unset($requireDev[$dep]);
+}
+
+$failures = [];
+
 if ($conflicts !== []) {
-    fwrite(STDERR, "version conflicts:\n  " . implode("\n  ", $conflicts) . "\n");
+    $failures[] = "version conflicts:\n  " . implode("\n  ", $conflicts);
+}
+if ($phpMismatches !== []) {
+    $failures[] = "php constraint mismatches (must equal root):\n  " . implode("\n  ", $phpMismatches);
+}
+
+if ($failures !== []) {
+    fwrite(STDERR, implode("\n", $failures) . "\n");
     exit(1);
+}
+
+if ($crossBucket !== []) {
+    fwrite(STDERR, "cross-bucket overlaps reconciled (require wins):\n  " . implode("\n  ", $crossBucket) . "\n");
 }
 
 ksort($require);
@@ -83,6 +158,10 @@ ksort($requireDev);
 ksort($replace);
 ksort($autoload);
 ksort($autoloadDev);
+
+// Stamp the file as generated so a future hand-edit (e.g. a `composer
+// require ...` that touches the root file) is visible at a glance.
+$rootJson = ['_generated_by' => 'bin/merge — do not hand-edit. Edit src/SoureCode/**/composer.json instead and re-run the script.'] + $rootJson;
 
 $rootJson['require'] = $require;
 if ($requireDev !== []) {

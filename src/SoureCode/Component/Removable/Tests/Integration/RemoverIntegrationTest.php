@@ -16,6 +16,7 @@ use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 use SoureCode\Component\Authorable\EventListener\AuthorableMappingListener;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
+use SoureCode\Component\Authorable\Removable\AuthorableDeletionMarkerProvider;
 use SoureCode\Component\Removable\Remover;
 use SoureCode\Component\Removable\Tests\Fixtures\Article;
 use SoureCode\Component\Removable\Tests\Fixtures\ArticleWithoutMarker;
@@ -74,8 +75,7 @@ final class RemoverIntegrationTest extends TestCase
             $this->entityManager,
             $this->clock,
             $timestampableMetadata,
-            $authorableMetadata,
-            $this->authorProvider,
+            [new AuthorableDeletionMarkerProvider($authorableMetadata, $this->authorProvider)],
         );
     }
 
@@ -190,8 +190,7 @@ final class RemoverIntegrationTest extends TestCase
             $this->entityManager,
             $this->clock,
             new TimestampableMetadataFactory(),
-            new AuthorableMetadataFactory(),
-            authorProvider: null,
+            [new AuthorableDeletionMarkerProvider(new AuthorableMetadataFactory(), authorProvider: null)],
         );
 
         $article = new Article('hello');
@@ -258,8 +257,7 @@ final class RemoverIntegrationTest extends TestCase
             $this->entityManager,
             $this->clock,
             new TimestampableMetadataFactory(),
-            new AuthorableMetadataFactory(),
-            $this->authorProvider,
+            [new AuthorableDeletionMarkerProvider(new AuthorableMetadataFactory(), $this->authorProvider)],
             $logger,
         );
 

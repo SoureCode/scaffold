@@ -30,8 +30,12 @@ final class TracingHttpClient implements HttpClientInterface
     {
         $context = $this->holder->getCurrent();
 
-        if ($context !== null && !isset($options['headers'][$this->header])) {
-            $options['headers'][$this->header] = (string) $context->getId();
+        if ($context !== null) {
+            $options['headers'] ??= [];
+
+            if (!isset($options['headers'][$this->header])) {
+                $options['headers'][$this->header] = (string) $context->getId();
+            }
         }
 
         return $this->client->request($method, $url, $options);

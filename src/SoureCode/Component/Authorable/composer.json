@@ -6,7 +6,8 @@
     "require": {
         "php": ">=8.5",
         "doctrine/orm": "^3.6",
-        "sourecode/doctrine-extensions": "self.version"
+        "sourecode/doctrine-extensions": "self.version",
+        "sourecode/removable": "self.version"
     },
     "require-dev": {
         "phpunit/phpunit": "^13.1"

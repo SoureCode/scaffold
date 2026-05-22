@@ -15,6 +15,14 @@ final class TimestampableMappingListener
     ) {
     }
 
+    /**
+     * Nullability rules per binding kind:
+     *   - #[CreatedAt]: always nullable=false; stamped on insert.
+     *   - #[UpdatedAt]: nullability comes from the binding so the attribute author can
+     *                   model "not yet stamped" without resorting to a sentinel value.
+     *   - #[ChangedAt] / #[DeletedAt]: always nullable=true; populated lazily by a field
+     *                   watch or soft-delete.
+     */
     public function loadClassMetadata(LoadClassMetadataEventArgs $args): void
     {
         $classMetadata = $args->getClassMetadata();
@@ -24,20 +32,20 @@ final class TimestampableMappingListener
             return;
         }
 
-        foreach ($metadata->createdBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property->getName(), $binding->type, false);
+        foreach ($metadata->getPersistBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty()->getName(), $binding->getType(), false);
         }
 
-        foreach ($metadata->updatedBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property->getName(), $binding->type, $binding->nullable);
+        foreach ($metadata->getUpdateBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty()->getName(), $binding->getType(), $binding->isNullable());
         }
 
-        foreach ($metadata->changedBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property->getName(), $binding->type, true);
+        foreach ($metadata->getChangeBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty()->getName(), $binding->getType(), true);
         }
 
-        foreach ($metadata->deletedBindings as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->property->getName(), $binding->type, true);
+        foreach ($metadata->getDeletedBindings() as $binding) {
+            $this->mapIfMissing($classMetadata, $binding->getProperty()->getName(), $binding->getType(), true);
         }
     }
 

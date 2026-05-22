@@ -56,8 +56,10 @@ final class VersionableMetadataFactoryTest extends TestCase
 
     public function testVersionTableNameAppendsSuffix(): void
     {
-        self::assertSame('article_version', VersionableMetadataFactory::versionTableName('article'));
-        self::assertSame('user_profile_version', VersionableMetadataFactory::versionTableName('user_profile'));
+        $factory = new VersionableMetadataFactory();
+
+        self::assertSame('article_version', $factory->versionTableName('article'));
+        self::assertSame('user_profile_version', $factory->versionTableName('user_profile'));
     }
 }
 

@@ -24,7 +24,12 @@ final class RecentAuthentication
 
     public function mark(): void
     {
-        $session = $this->requestStack->getSession();
+        $session = $this->resolveSession();
+
+        if ($session === null) {
+            return;
+        }
+
         $session->migrate(true);
         $at = $this->clock->now()->getTimestamp();
         $session->set(self::SESSION_KEY, $at);
@@ -34,10 +39,45 @@ final class RecentAuthentication
 
     public function clear(): void
     {
-        $this->requestStack->getSession()->remove(self::SESSION_KEY);
+        $session = $this->resolveSession();
+
+        if ($session === null) {
+            return;
+        }
+
+        $session->remove(self::SESSION_KEY);
         $this->eventDispatcher?->dispatch(new RecentAuthClearedEvent());
     }
 
+    /**
+     * Returns the active session, or null when called outside an HTTP
+     * request (CLI, messenger worker) so `mark()` and `clear()` are
+     * inert there instead of throwing SessionNotFoundException —
+     * mirroring the defensiveness that `isActive()` already has.
+     */
+    private function resolveSession(): ?\Symfony\Component\HttpFoundation\Session\SessionInterface
+    {
+        $request = $this->requestStack->getMainRequest();
+
+        if ($request === null || !$request->hasSession()) {
+            return null;
+        }
+
+        return $request->getSession();
+    }
+
+    /**
+     * Checks whether the current session has a recent-auth marker that is
+     * still within TTL.
+     *
+     * Side-effect asymmetry: an expired marker is auto-cleared **only**
+     * when called without an explicit `$ttlSeconds` (i.e. against the
+     * configured bundle default). A tighter per-call TTL is meant for a
+     * per-resource sensitivity bar — denying access does not invalidate
+     * the underlying session timestamp, because a less sensitive
+     * resource may still accept it. Callers needing a hard wipe should
+     * call `clear()` explicitly.
+     */
     public function isActive(?int $ttlSeconds = null): bool
     {
         $request = $this->requestStack->getMainRequest();
@@ -73,14 +113,20 @@ final class RecentAuthentication
             return;
         }
 
-        $this->requestStack->getSession()->set(self::RETURN_KEY, $path);
+        $session = $this->resolveSession();
+
+        if ($session === null) {
+            return;
+        }
+
+        $session->set(self::RETURN_KEY, $path);
     }
 
     public function takeReturnPath(): ?string
     {
-        $session = $this->requestStack->getSession();
+        $session = $this->resolveSession();
 
-        if (!$session->has(self::RETURN_KEY)) {
+        if ($session === null || !$session->has(self::RETURN_KEY)) {
             return null;
         }
 
