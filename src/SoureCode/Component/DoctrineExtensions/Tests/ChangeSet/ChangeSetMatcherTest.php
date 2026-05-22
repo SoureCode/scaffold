@@ -239,6 +239,44 @@ final class ChangeSetMatcherTest extends TestCase
         self::assertTrue($matcher->matches($binding, $entity, $unitOfWork));
     }
 
+    public function testNewlyAssignedRelatedRejectsWhenTailPropertyDoesNotExist(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $entity = new Sample('child');
+        $newParent = new Sample('p-new');
+        $entity->parent = $newParent;
+
+        // Tail of the binding ("nonexistent") names a property that does
+        // not exist on the new related object. matchesNewlyAssignedRelated
+        // bails out via the findProperty===null branch.
+        $binding = $this->makeBinding($entity, ['parent.nonexistent']);
+        $unitOfWork = $this->mockUnitOfWork([
+            spl_object_id($entity) => ['parent' => [null, $newParent]],
+        ]);
+
+        self::assertFalse($matcher->matches($binding, $entity, $unitOfWork));
+    }
+
+    public function testNewlyAssignedRelatedRecursesWhenTailStillContainsDots(): void
+    {
+        $matcher = new ChangeSetMatcher();
+        $entity = new Sample('child');
+        $newGrandparent = new Sample('gp');
+        $newParent = new Sample('p-new');
+        $newParent->parent = $newGrandparent;
+        $entity->parent = $newParent;
+
+        // Tail is "parent.label" — still dotted, so matchesNewlyAssignedRelated
+        // recurses through matchesPath instead of doing the leaf check.
+        $binding = $this->makeBinding($entity, ['parent.parent.label']);
+        $unitOfWork = $this->mockUnitOfWork([
+            spl_object_id($entity) => ['parent' => [null, $newParent]],
+            spl_object_id($newGrandparent) => ['label' => ['old', 'gp']],
+        ]);
+
+        self::assertTrue($matcher->matches($binding, $entity, $unitOfWork));
+    }
+
     /**
      * @param array<int, array<string, array{0: mixed, 1: mixed}>> $changeSets
      */

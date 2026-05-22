@@ -15,11 +15,17 @@ final class FakeBehaviorMetadata implements BehaviorMetadataInterface
      * @param list<PersistBindingInterface> $persistBindings
      * @param list<UpdateBindingInterface> $updateBindings
      * @param list<ChangeBindingInterface> $changeBindings
+     * @param list<PersistBindingInterface> $deletedBindings  Not part of the
+     *        public behavior interface (Versionable has no deletion concept);
+     *        consumed by the mapping-listener tests via a known concrete
+     *        type, mirroring how AuthorableMetadata / TimestampableMetadata
+     *        expose theirs.
      */
     public function __construct(
         private readonly array $persistBindings = [],
         private readonly array $updateBindings = [],
         private readonly array $changeBindings = [],
+        private readonly array $deletedBindings = [],
     ) {
     }
 
@@ -38,10 +44,19 @@ final class FakeBehaviorMetadata implements BehaviorMetadataInterface
         return $this->changeBindings;
     }
 
+    /**
+     * @return list<PersistBindingInterface>
+     */
+    public function getDeletedBindings(): array
+    {
+        return $this->deletedBindings;
+    }
+
     public function isEmpty(): bool
     {
         return $this->persistBindings === []
             && $this->updateBindings === []
-            && $this->changeBindings === [];
+            && $this->changeBindings === []
+            && $this->deletedBindings === [];
     }
 }

@@ -61,10 +61,15 @@ final class FakeFlushListener extends AbstractFlushListener
         ++$this->updateFallbackCalls;
 
         if ($entity instanceof StampableInterface) {
-            $entity->setInterfaceStamp('update-fallback');
-            $unitOfWork->recomputeSingleEntityChangeSet(
-                $entityManager->getClassMetadata($entity::class),
+            // Route through the base helper so applyInterfaceUpdate is
+            // exercised in tests. The helper handles the "skip if already
+            // in change set" guard + the post-stamp recompute.
+            $this->applyInterfaceUpdate(
                 $entity,
+                $entityManager,
+                $unitOfWork,
+                'interfaceStamp',
+                static fn (StampableInterface $stampable): mixed => $stampable->setInterfaceStamp('update-fallback'),
             );
         }
     }
