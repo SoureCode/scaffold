@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SoureCode\Bundle\TimestampableBundle;
 
 use Doctrine\ORM\Events;
+use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\ListenerPrioritiesConfigBuilder;
 use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedListenerRegistrar;
 use SoureCode\Component\Timestampable\EventListener\TimestampableListener;
 use SoureCode\Component\Timestampable\EventListener\TimestampableMappingListener;
@@ -19,15 +20,11 @@ final class TimestampableBundle extends AbstractBundle
     {
         $definition->rootNode()
             ->children()
-                ->arrayNode('listener_priorities')
-                    ->addDefaultsIfNotSet()
-                    ->info('Doctrine event listener priorities. Higher numbers run first.')
-                    ->children()
-                        ->integerNode('pre_persist')->defaultValue(0)->end()
-                        ->integerNode('on_flush')->defaultValue(0)->end()
-                        ->integerNode('load_class_metadata')->defaultValue(0)->end()
-                    ->end()
-                ->end()
+                ->append(ListenerPrioritiesConfigBuilder::build([
+                    'pre_persist' => 0,
+                    'on_flush' => 0,
+                    'load_class_metadata' => 0,
+                ]))
             ->end();
     }
 

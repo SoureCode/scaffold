@@ -6,6 +6,7 @@ namespace SoureCode\Bundle\VersionableBundle;
 
 use Doctrine\ORM\Events;
 use Doctrine\ORM\Tools\ToolEvents;
+use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\ListenerPrioritiesConfigBuilder;
 use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedListenerRegistrar;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
@@ -20,15 +21,11 @@ final class VersionableBundle extends AbstractBundle
     {
         $definition->rootNode()
             ->children()
-                ->arrayNode('listener_priorities')
-                    ->addDefaultsIfNotSet()
-                    ->info('Doctrine event listener priorities. Higher numbers run first. Versionable snapshots the entity in postFlush; the onFlush phase only collects targets.')
-                    ->children()
-                        ->integerNode('on_flush')->defaultValue(-100)->end()
-                        ->integerNode('post_flush')->defaultValue(-100)->end()
-                        ->integerNode('post_generate_schema')->defaultValue(0)->end()
-                    ->end()
-                ->end()
+                ->append(ListenerPrioritiesConfigBuilder::build([
+                    'on_flush' => -100,
+                    'post_flush' => -100,
+                    'post_generate_schema' => 0,
+                ]))
             ->end();
     }
 

@@ -4,18 +4,15 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Timestampable\Metadata;
 
+use SoureCode\Component\DoctrineExtensions\Metadata\AbstractBehaviorMetadataFactory;
 use SoureCode\Component\DoctrineExtensions\Metadata\BehaviorMetadataFactoryInterface;
 use SoureCode\Component\Timestampable\Attribute\ChangedAt;
 use SoureCode\Component\Timestampable\Attribute\CreatedAt;
 use SoureCode\Component\Timestampable\Attribute\DeletedAt;
 use SoureCode\Component\Timestampable\Attribute\UpdatedAt;
 
-final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInterface
+final class TimestampableMetadataFactory extends AbstractBehaviorMetadataFactory implements BehaviorMetadataFactoryInterface
 {
-    /**
-     * @var array<class-string, TimestampableMetadata>
-     */
-    private array $cache = [];
 
     /**
      * @param class-string $class
@@ -23,6 +20,7 @@ final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInter
     public function getMetadataFor(string $class): TimestampableMetadata
     {
         if (isset($this->cache[$class])) {
+            /** @var TimestampableMetadata */
             return $this->cache[$class];
         }
 
@@ -30,10 +28,10 @@ final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInter
         $updated = [];
         $changed = [];
         $deleted = [];
-        $reflection = new \ReflectionClass($class);
 
-        do {
-            foreach ($reflection->getProperties() as $property) {
+        $this->walkHierarchy(
+            $class,
+            static function (\ReflectionProperty $property) use (&$created, &$updated, &$changed, &$deleted): void {
                 foreach ($property->getAttributes(CreatedAt::class) as $attribute) {
                     $instance = $attribute->newInstance();
                     $created[] = new CreatedAtBinding($property, $instance->type);
@@ -53,11 +51,12 @@ final class TimestampableMetadataFactory implements BehaviorMetadataFactoryInter
                     $instance = $attribute->newInstance();
                     $deleted[] = new DeletedAtBinding($property, $instance->type);
                 }
-            }
+            },
+        );
 
-            $reflection = $reflection->getParentClass();
-        } while ($reflection !== false);
+        $metadata = new TimestampableMetadata($created, $updated, $changed, $deleted);
+        $this->cache[$class] = $metadata;
 
-        return $this->cache[$class] = new TimestampableMetadata($created, $updated, $changed, $deleted);
+        return $metadata;
     }
 }

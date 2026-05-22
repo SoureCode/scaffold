@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Timestampable\Metadata;
 
-final class DeletedAtBinding
+use SoureCode\Component\DoctrineExtensions\Metadata\PersistBindingInterface;
+
+final class DeletedAtBinding implements PersistBindingInterface, TypedBindingInterface
 {
     public function __construct(
         private readonly \ReflectionProperty $property,

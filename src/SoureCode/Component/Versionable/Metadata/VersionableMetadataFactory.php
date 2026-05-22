@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Versionable\Metadata;
 
+use SoureCode\Component\DoctrineExtensions\Metadata\AbstractBehaviorMetadataFactory;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
-class VersionableMetadataFactory
+class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
 {
-    /**
-     * @var array<class-string, VersionableMetadata>
-     */
-    private array $cache = [];
 
     /**
      * @param class-string $class
@@ -19,40 +16,27 @@ class VersionableMetadataFactory
     public function getMetadataFor(string $class): VersionableMetadata
     {
         if (isset($this->cache[$class])) {
+            /** @var VersionableMetadata */
             return $this->cache[$class];
         }
 
         $bindings = [];
-        $seen = [];
 
-        // ReflectionClass::getProperties() does not return inherited
-        // properties whose declaring class is a parent; walk the hierarchy
-        // root-first so parent properties come before child overrides.
-        $hierarchy = [];
-        for ($reflection = new \ReflectionClass($class); $reflection !== false; $reflection = $reflection->getParentClass()) {
-            $hierarchy[] = $reflection;
-        }
-
-        foreach (array_reverse($hierarchy) as $reflection) {
-            foreach ($reflection->getProperties() as $property) {
-                if ($property->getDeclaringClass()->getName() !== $reflection->getName()) {
-                    continue;
-                }
-
-                if (isset($seen[$property->getName()])) {
-                    continue;
-                }
-
+        $this->walkHierarchy(
+            $class,
+            static function (\ReflectionProperty $property) use (&$bindings): void {
                 if ($property->getAttributes(Versioned::class) === []) {
-                    continue;
+                    return;
                 }
 
-                $seen[$property->getName()] = true;
                 $bindings[] = new VersionedBinding($property);
-            }
-        }
+            },
+        );
 
-        return $this->cache[$class] = new VersionableMetadata($bindings);
+        $metadata = new VersionableMetadata($bindings);
+        $this->cache[$class] = $metadata;
+
+        return $metadata;
     }
 
     /**

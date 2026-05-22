@@ -6,7 +6,7 @@ namespace SoureCode\Component\Timestampable\Metadata;
 
 use SoureCode\Component\DoctrineExtensions\Metadata\ChangeBindingInterface;
 
-final class ChangedAtBinding implements ChangeBindingInterface
+final class ChangedAtBinding implements ChangeBindingInterface, TypedBindingInterface
 {
     /**
      * @param list<string> $fields

@@ -6,7 +6,7 @@ namespace SoureCode\Component\Timestampable\Metadata;
 
 use SoureCode\Component\DoctrineExtensions\Metadata\PersistBindingInterface;
 
-final class CreatedAtBinding implements PersistBindingInterface
+final class CreatedAtBinding implements PersistBindingInterface, TypedBindingInterface
 {
     public function __construct(
         private readonly \ReflectionProperty $property,

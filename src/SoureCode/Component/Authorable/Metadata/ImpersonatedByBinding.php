@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Authorable\Metadata;
 
-final class ImpersonatedByBinding
+use SoureCode\Component\DoctrineExtensions\Metadata\PersistBindingInterface;
+
+final class ImpersonatedByBinding implements PersistBindingInterface
 {
     public function __construct(
         private readonly \ReflectionProperty $property,

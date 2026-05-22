@@ -6,7 +6,7 @@ namespace SoureCode\Component\Timestampable\Metadata;
 
 use SoureCode\Component\DoctrineExtensions\Metadata\UpdateBindingInterface;
 
-final class UpdatedAtBinding implements UpdateBindingInterface
+final class UpdatedAtBinding implements UpdateBindingInterface, TypedBindingInterface
 {
     public function __construct(
         private readonly \ReflectionProperty $property,

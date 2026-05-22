@@ -6,6 +6,7 @@ namespace SoureCode\Bundle\AuthorableBundle;
 
 use Doctrine\ORM\Events;
 use SoureCode\Bundle\AuthorableBundle\Security\SecurityAuthorProvider;
+use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\ListenerPrioritiesConfigBuilder;
 use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedListenerRegistrar;
 use SoureCode\Component\Authorable\Author\AuthorProviderInterface;
 use SoureCode\Component\Authorable\EventListener\AuthorableListener;
@@ -30,15 +31,11 @@ final class AuthorableBundle extends AbstractBundle
                     ->defaultNull()
                     ->info('Concrete entity class used as ManyToOne target for every CreatedBy/UpdatedBy/ChangedBy binding. When null, the property\'s PHP type is used.')
                 ->end()
-                ->arrayNode('listener_priorities')
-                    ->addDefaultsIfNotSet()
-                    ->info('Doctrine event listener priorities. Higher numbers run first.')
-                    ->children()
-                        ->integerNode('pre_persist')->defaultValue(0)->end()
-                        ->integerNode('on_flush')->defaultValue(0)->end()
-                        ->integerNode('load_class_metadata')->defaultValue(0)->end()
-                    ->end()
-                ->end()
+                ->append(ListenerPrioritiesConfigBuilder::build([
+                    'pre_persist' => 0,
+                    'on_flush' => 0,
+                    'load_class_metadata' => 0,
+                ]))
             ->end();
     }
 

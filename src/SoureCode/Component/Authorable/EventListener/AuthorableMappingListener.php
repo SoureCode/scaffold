@@ -4,57 +4,31 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Authorable\EventListener;
 
-use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use SoureCode\Component\Authorable\Metadata\AuthorableMetadata;
 use SoureCode\Component\Authorable\Metadata\AuthorableMetadataFactory;
+use SoureCode\Component\DoctrineExtensions\EventListener\AbstractMetadataMappingListener;
+use SoureCode\Component\DoctrineExtensions\Metadata\BehaviorMetadataInterface;
+use SoureCode\Component\DoctrineExtensions\Metadata\PersistBindingInterface;
 
-final class AuthorableMappingListener
+final class AuthorableMappingListener extends AbstractMetadataMappingListener
 {
     /**
      * @param class-string|null $userClass when set, overrides the property's PHP type as the target entity for every binding
      */
     public function __construct(
-        private readonly AuthorableMetadataFactory $metadataFactory,
+        AuthorableMetadataFactory $metadataFactory,
         private readonly ?string $userClass = null,
     ) {
+        parent::__construct($metadataFactory);
     }
 
-    /**
-     * Nullability rules per binding kind:
-     *   - #[CreatedBy]: always nullable=false; the row is stamped on insert and cannot revert to null.
-     *   - #[UpdatedBy]: nullability comes from the binding itself, so the attribute author can
-     *                   model "may be unset on first persist" via the attribute.
-     *   - #[ChangedBy] / #[DeletedBy]: always nullable=true; these are populated lazily by a
-     *                   field-watch or soft-delete and there is no clean default value before that.
-     */
-    public function loadClassMetadata(LoadClassMetadataEventArgs $args): void
-    {
-        $classMetadata = $args->getClassMetadata();
-        $metadata = $this->metadataFactory->getMetadataFor($classMetadata->getName());
-
-        if ($metadata->isEmpty()) {
-            return;
-        }
-
-        foreach ($metadata->getPersistBindings() as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->getProperty(), false);
-        }
-
-        foreach ($metadata->getUpdateBindings() as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->getProperty(), $binding->isNullable());
-        }
-
-        foreach ($metadata->getChangeBindings() as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->getProperty(), true);
-        }
-
-        foreach ($metadata->getDeletedBindings() as $binding) {
-            $this->mapIfMissing($classMetadata, $binding->getProperty(), true);
-        }
-    }
-
-    private function mapIfMissing(ClassMetadata $classMetadata, \ReflectionProperty $property, bool $nullable): void
-    {
+    protected function mapIfMissing(
+        ClassMetadata $classMetadata,
+        PersistBindingInterface $binding,
+        bool $nullable,
+    ): void {
+        $property = $binding->getProperty();
         $fieldName = $property->getName();
 
         if ($classMetadata->hasAssociation($fieldName)) {
@@ -77,6 +51,13 @@ final class AuthorableMappingListener
                 'nullable' => $nullable,
             ]],
         ]);
+    }
+
+    protected function getDeletedBindings(BehaviorMetadataInterface $metadata): iterable
+    {
+        \assert($metadata instanceof AuthorableMetadata);
+
+        return $metadata->getDeletedBindings();
     }
 
     /**

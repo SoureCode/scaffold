@@ -9,14 +9,11 @@ use SoureCode\Component\Authorable\Attribute\CreatedBy;
 use SoureCode\Component\Authorable\Attribute\DeletedBy;
 use SoureCode\Component\Authorable\Attribute\ImpersonatedBy;
 use SoureCode\Component\Authorable\Attribute\UpdatedBy;
+use SoureCode\Component\DoctrineExtensions\Metadata\AbstractBehaviorMetadataFactory;
 use SoureCode\Component\DoctrineExtensions\Metadata\BehaviorMetadataFactoryInterface;
 
-final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterface
+final class AuthorableMetadataFactory extends AbstractBehaviorMetadataFactory implements BehaviorMetadataFactoryInterface
 {
-    /**
-     * @var array<class-string, AuthorableMetadata>
-     */
-    private array $cache = [];
 
     /**
      * @param class-string $class
@@ -24,6 +21,7 @@ final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterfac
     public function getMetadataFor(string $class): AuthorableMetadata
     {
         if (isset($this->cache[$class])) {
+            /** @var AuthorableMetadata */
             return $this->cache[$class];
         }
 
@@ -32,10 +30,10 @@ final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterfac
         $changed = [];
         $deleted = [];
         $impersonated = [];
-        $reflection = new \ReflectionClass($class);
 
-        do {
-            foreach ($reflection->getProperties() as $property) {
+        $this->walkHierarchy(
+            $class,
+            static function (\ReflectionProperty $property) use (&$created, &$updated, &$changed, &$deleted, &$impersonated): void {
                 if ($property->getAttributes(CreatedBy::class) !== []) {
                     $created[] = new CreatedByBinding($property);
                 }
@@ -57,11 +55,12 @@ final class AuthorableMetadataFactory implements BehaviorMetadataFactoryInterfac
                 if ($property->getAttributes(ImpersonatedBy::class) !== []) {
                     $impersonated[] = new ImpersonatedByBinding($property);
                 }
-            }
+            },
+        );
 
-            $reflection = $reflection->getParentClass();
-        } while ($reflection !== false);
+        $metadata = new AuthorableMetadata($created, $updated, $changed, $deleted, $impersonated);
+        $this->cache[$class] = $metadata;
 
-        return $this->cache[$class] = new AuthorableMetadata($created, $updated, $changed, $deleted, $impersonated);
+        return $metadata;
     }
 }
