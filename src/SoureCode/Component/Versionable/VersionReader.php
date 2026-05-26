@@ -178,7 +178,7 @@ final class VersionReader
 
         $idField = $classMetadata->getSingleIdentifierFieldName();
         $idType = Type::getType($classMetadata->getFieldMapping($idField)->type);
-        $classMetadata->getReflectionProperty($idField)->setValue(
+        $classMetadata->getPropertyAccessor($idField)->setValue(
             $entity,
             $idType->convertToPHPValue($row[VersionTableColumns::ENTITY_ID], $this->entityManager->getConnection()->getDatabasePlatform()),
         );
@@ -202,7 +202,7 @@ final class VersionReader
         $assoc = $classMetadata->getAssociationMapping($fieldName);
         $targetMetadata = $this->entityManager->getClassMetadata($assoc->targetEntity);
         $idField = $targetMetadata->getSingleIdentifierFieldName();
-        $idProperty = $targetMetadata->getReflectionProperty($idField);
+        $idProperty = $targetMetadata->getPropertyAccessor($idField);
 
         $ids = [];
 
