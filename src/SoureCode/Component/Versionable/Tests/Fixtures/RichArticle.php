@@ -12,6 +12,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_rich_article')]
+#[Versioned]
 class RichArticle
 {
     #[ORM\Id]
@@ -19,16 +20,13 @@ class RichArticle
     #[ORM\GeneratedValue]
     private int $id;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     private string $title;
 
-    #[Versioned]
     #[ORM\ManyToOne(targetEntity: Category::class)]
     #[ORM\JoinColumn(nullable: true)]
     private ?Category $category = null;
 
-    #[Versioned]
     #[ORM\OneToOne(targetEntity: Profile::class, cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: true)]
     private ?Profile $profile = null;
@@ -36,14 +34,12 @@ class RichArticle
     /**
      * @var Collection<int, Comment>
      */
-    #[Versioned]
     #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'article', cascade: ['persist'])]
     private Collection $comments;
 
     /**
      * @var Collection<int, Tag>
      */
-    #[Versioned]
     #[ORM\ManyToMany(targetEntity: Tag::class)]
     private Collection $tags;
 

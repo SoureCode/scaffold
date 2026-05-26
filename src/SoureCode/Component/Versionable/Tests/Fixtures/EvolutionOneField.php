@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_evolution_one_field')]
+#[Versioned]
 class EvolutionOneField
 {
     #[ORM\Id]
@@ -17,7 +18,6 @@ class EvolutionOneField
     #[ORM\GeneratedValue]
     public ?int $id = null;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     public string $title = '';
 }

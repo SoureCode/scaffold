@@ -83,7 +83,7 @@ final class VersionableIntegrationTest extends TestCase
         self::assertSame('first body', $rows[0]['body']);
     }
 
-    public function testUpdateOnlyOnNonVersionedFieldWritesNoSnapshot(): void
+    public function testUpdateOnAnyMappedFieldWritesSnapshot(): void
     {
         $article = new Article('hello');
         $this->entityManager->persist($article);
@@ -92,7 +92,7 @@ final class VersionableIntegrationTest extends TestCase
         $article->setInternalNote('audit only');
         $this->entityManager->flush();
 
-        self::assertSame(0, $this->countVersionRows($article->getId()));
+        self::assertSame(1, $this->countVersionRows($article->getId()));
     }
 
     public function testVersionCounterIncrementsPerEntity(): void

@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'evolution_article')]
+#[Versioned]
 class Article
 {
     #[ORM\Id]
@@ -17,11 +18,9 @@ class Article
     #[ORM\GeneratedValue]
     public ?int $id = null;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     public string $title = '';
 
-    #[Versioned]
     #[ORM\ManyToOne(targetEntity: Category::class)]
     #[ORM\JoinColumn(nullable: true)]
     public ?Category $category = null;

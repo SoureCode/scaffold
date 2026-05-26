@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_customer_location')]
+#[Versioned]
 class CustomerLocation
 {
     #[ORM\Id]
@@ -17,11 +18,9 @@ class CustomerLocation
     #[ORM\GeneratedValue]
     private int $id;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     private string $name;
 
-    #[Versioned]
     #[ORM\Embedded(class: PostalAddress::class)]
     private PostalAddress $address;
 

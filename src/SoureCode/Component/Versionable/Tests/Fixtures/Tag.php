@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_tag')]
+#[Versioned]
 class Tag
 {
     #[ORM\Id]
@@ -17,7 +18,6 @@ class Tag
     #[ORM\GeneratedValue]
     private int $id;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     private string $name;
 

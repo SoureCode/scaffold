@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_account')]
+#[Versioned]
 class Account
 {
     #[ORM\Id]
@@ -17,11 +18,9 @@ class Account
     #[ORM\GeneratedValue]
     private int $id;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     private string $name;
 
-    #[Versioned]
     #[ORM\OneToOne(mappedBy: 'account', targetEntity: AccountSettings::class, cascade: ['persist'])]
     private ?AccountSettings $settings = null;
 

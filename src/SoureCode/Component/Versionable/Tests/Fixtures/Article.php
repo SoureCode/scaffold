@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_article')]
+#[Versioned]
 class Article
 {
     #[ORM\Id]
@@ -17,11 +18,9 @@ class Article
     #[ORM\GeneratedValue]
     private int $id;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     private string $title;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING, nullable: true)]
     private ?string $body = null;
 

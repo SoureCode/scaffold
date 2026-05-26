@@ -13,6 +13,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 #[ORM\InheritanceType('SINGLE_TABLE')]
 #[ORM\DiscriminatorColumn(name: 'kind', type: Types::STRING)]
 #[ORM\DiscriminatorMap(['memo' => InheritedMemo::class, 'announcement' => InheritedAnnouncement::class])]
+#[Versioned]
 abstract class InheritedDocument
 {
     #[ORM\Id]
@@ -20,7 +21,6 @@ abstract class InheritedDocument
     #[ORM\GeneratedValue]
     private int $id;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     private string $title;
 

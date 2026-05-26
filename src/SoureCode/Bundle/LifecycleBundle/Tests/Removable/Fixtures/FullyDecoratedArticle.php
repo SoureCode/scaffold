@@ -16,6 +16,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'composition_article')]
+#[Versioned]
 class FullyDecoratedArticle
 {
     use CreatedAtTrait;
@@ -31,7 +32,6 @@ class FullyDecoratedArticle
     public ?int $id = null;
 
     #[ORM\Column(type: Types::STRING)]
-    #[Versioned]
     public string $title;
 
     public function __construct(string $title)

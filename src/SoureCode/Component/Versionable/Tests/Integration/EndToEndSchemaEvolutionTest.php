@@ -18,7 +18,7 @@ use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 /**
- * Drives the full Doctrine Migrations flow for every kind of #[Versioned] schema change.
+ * Drives the full Doctrine Migrations flow for every kind of schema change on a versioned entity.
  *
  * For each scenario we:
  *   1. Boot a "before" EntityManager with one fixture directory; create the schema in SQLite.

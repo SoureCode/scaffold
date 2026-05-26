@@ -36,7 +36,7 @@ final class VersionableMetadataFactoryTest extends TestCase
         $factory = new VersionableMetadataFactory();
         $metadata = $factory->getMetadataFor(VersionableMetadataFactoryTestChild::class);
 
-        self::assertCount(1, $metadata->bindings, 'Inherited #[Versioned] property must yield exactly one binding');
+        self::assertCount(1, $metadata->bindings, 'Property inherited from a versioned parent must yield exactly one binding');
         self::assertSame('title', $metadata->bindings[0]->property->getName());
         self::assertSame(
             VersionableMetadataFactoryTestEntity::class,
@@ -75,6 +75,7 @@ class VersionableMetadataFactoryTestPlain
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_metadata_factory_test_entity')]
+#[Versioned]
 class VersionableMetadataFactoryTestEntity
 {
     #[ORM\Id]
@@ -82,7 +83,6 @@ class VersionableMetadataFactoryTestEntity
     #[ORM\GeneratedValue]
     public ?int $id = null;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     public string $title = '';
 }

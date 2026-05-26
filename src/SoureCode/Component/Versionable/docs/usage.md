@@ -37,33 +37,28 @@ $em->flush(); // writes a new snapshot capturing the revert
 
 ## Composition
 
-`Versionable` only tracks fields. Cross-cutting state (who, when) lives in the dedicated behaviors — mark the relevant field `#[Versioned]` and the snapshot picks it up.
+`Versionable` tracks the whole entity. Cross-cutting state (who, when) managed by other behaviors is captured automatically — no per-field marking.
 
 ### Author per snapshot
 
 ```php
 use SoureCode\Component\Lifecycle\Attribute\UpdatedBy;
-use SoureCode\Component\Versionable\Attribute\Versioned;
 
-#[Versioned]
 #[UpdatedBy]
 private ?User $updatedBy = null;
 ```
 
-Every snapshot records who produced it.
+When the entity is `#[Versioned]`, every snapshot records who produced it.
 
 ### Soft-delete history
 
 ```php
 use SoureCode\Component\Lifecycle\Attribute\DeletedBy;
 use SoureCode\Component\Lifecycle\Attribute\DeletedAt;
-use SoureCode\Component\Versionable\Attribute\Versioned;
 
-#[Versioned]
 #[DeletedAt]
 private ?\DateTimeImmutable $deletedAt = null;
 
-#[Versioned]
 #[DeletedBy]
 private ?User $deletedBy = null;
 ```
@@ -72,4 +67,4 @@ The soft-delete transition (`null → timestamp`) and `restore()` (`timestamp �
 
 ### General rule
 
-Any property tracked by another behavior can be made historical by adding `#[Versioned]`. No coupling required.
+Mark the entity `#[Versioned]`; every mapped field — including those managed by other behaviors — becomes historical. No per-field coupling.

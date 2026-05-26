@@ -57,7 +57,7 @@ final class SchemaEvolutionIntegrationTest extends TestCase
     {
         // postGenerateSchema is what doctrine:migrations:diff calls against in-memory
         // metadata. Calling it repeatedly must keep reflecting the CURRENT entity shape,
-        // not a cached one — otherwise adding a #[Versioned] field wouldn't show up in
+        // not a cached one — otherwise adding a field to a versioned entity wouldn't show up in
         // the next generated migration.
         $listener = new VersionableSchemaListener(new VersionableMetadataFactory());
 

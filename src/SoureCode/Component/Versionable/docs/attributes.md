@@ -6,33 +6,35 @@
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
+#[Versioned]
 class Article
 {
-    #[Versioned]
+    #[ORM\Id, ORM\Column, ORM\GeneratedValue]
+    private int $id;
+
     #[ORM\Column]
     private string $title;
 
-    #[Versioned]
     #[ORM\ManyToOne(targetEntity: Author::class)]
     private ?Author $author = null;
 
-    #[Versioned]
     #[ORM\ManyToMany(targetEntity: Tag::class)]
     private Collection $tags;
 }
 ```
 
-Marks the property as tracked. Any change to it appends a snapshot row.
+Marks the entity as versioned. Every mapped field and association — except the identifier — is tracked; any change to one of them appends a snapshot row.
 
 No arguments.
 
-Target: `\Attribute::TARGET_PROPERTY`. Picked up from parent classes too.
+Target: `\Attribute::TARGET_CLASS`. Mark the root of an inheritance hierarchy once; subclasses are versioned too.
 
-### Supported property kinds
+### How each field kind is stored
 
 | Kind | Where it lives |
 |------|----------------|
 | Scalar / enum field | column on the snapshot row |
+| Embeddable | flattened columns on the snapshot row |
 | `ManyToOne` (owning) | `<field>_id` column on the snapshot row |
 | `OneToOne` (either side) | `<field>_id` column on the snapshot row |
 | `OneToMany` (inverse collection) | one row per element in `<entity>_version_<field>` |

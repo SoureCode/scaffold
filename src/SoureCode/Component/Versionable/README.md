@@ -1,10 +1,10 @@
 # sourecode/versionable
 
-Snapshot-history for Doctrine entities. Mark properties with `#[Versioned]`; every change to one of them appends a row to a parallel `<entity>_version` table.
+Snapshot-history for Doctrine entities. Mark an entity with `#[Versioned]`; every change to any of its mapped fields appends a row to a parallel `<entity>_version` table.
 
 ## When to use
 
-You need a per-row audit log of selected fields: "what did this entity look like at version N?" / "revert this article to last week's title."
+You need a per-row audit log of an entity's fields: "what did this entity look like at version N?" / "revert this article to last week's title."
 
 ## When not to use
 
@@ -20,22 +20,21 @@ Part of the `scaffold` monorepo. The [`versionable-bundle`](../../Bundle/Version
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
+#[Versioned]
 class Article
 {
     #[ORM\Id, ORM\Column, ORM\GeneratedValue]
     private int $id;
 
-    #[Versioned]
     #[ORM\Column]
     private string $title;
 
-    #[Versioned]
     #[ORM\Column(nullable: true)]
     private ?string $body = null;
 }
 ```
 
-Every change to `title` or `body` appends a row to `article_version`. Insert is not a snapshot — the entity row itself is version 0.
+Every change to a mapped field (`title`, `body`, …) appends a row to `article_version`. The identifier is excluded. Insert is not a snapshot — the entity row itself is version 0.
 
 ## Reference
 
@@ -48,10 +47,9 @@ Every change to `title` or `body` appends a row to `article_version`. Insert is 
 | Operation | Snapshot |
 |-----------|----------|
 | Insert | No. |
-| Update touching a `#[Versioned]` field | Yes — one row. |
-| Update touching only non-versioned fields | No. |
+| Update touching any mapped field | Yes — one row. |
 | Source entity deleted | All snapshots cascade-delete. |
-| Versioned collection mutated (add/remove) | Yes. |
+| Collection mutated (add/remove) | Yes. |
 
 Version numbers start at `1` and increment per entity. `(entity_id, version)` is uniquely indexed.
 
@@ -63,11 +61,11 @@ Version numbers start at `1` and increment per entity. `(entity_id, version)` is
 | `entity_id` | FK to source row, `ON DELETE CASCADE` |
 | `version` | per-entity counter |
 | `created_at` | snapshot timestamp |
-| `<scalar>` | one column per versioned scalar / enum field |
-| `<field>_id` | one column per versioned single-card relation |
+| `<scalar>` | one column per mapped scalar / enum field |
+| `<field>_id` | one column per single-card relation |
 | `<field>_version` | only when the target is itself `Versionable` — its current version |
 
-Versioned collections live in a `<entity>_version_<field>` join table.
+Collection fields live in a `<entity>_version_<field>` join table.
 
 ## Reading history
 
@@ -78,12 +76,11 @@ $versioner->findLatestVersion(Article::class, $id);    // one row or null
 $versioner->applyVersion($article, 2);                  // mutate in place
 ```
 
-`applyVersion()` overwrites versioned fields in place. Related entities are re-attached at their *current* state — historical state of the targets is not restored. Persisting the entity afterwards produces a new snapshot capturing the revert.
+`applyVersion()` overwrites the entity's mapped fields in place. Related entities are re-attached at their *current* state — historical state of the targets is not restored. Persisting the entity afterwards produces a new snapshot capturing the revert.
 
 ## Composition
 
-- [`Authorable`](../Authorable/README.md) — mark `#[UpdatedBy]` as `#[Versioned]` to record the author per snapshot.
-- [`Timestampable`](../Timestampable/README.md) / [`Removable`](../Removable/README.md) — mark `#[DeletedAt]` `#[Versioned]` to capture the soft-delete transition.
+The whole entity is versioned, so fields managed by other behaviors are captured automatically — no extra marking. When the entity also uses [`Lifecycle`](../Lifecycle), its `updatedBy` / `deletedAt` / `deletedBy` fields appear in every snapshot, and the soft-delete transition (`null → timestamp`) and `restore()` each produce one.
 
 ## Limits
 

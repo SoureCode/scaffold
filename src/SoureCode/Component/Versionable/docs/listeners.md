@@ -33,7 +33,7 @@ $em->getEventManager()->addEventListener([ToolEvents::postGenerateSchema], $sche
 
 Event: `postGenerateSchema`.
 
-Adds the `<entity>_version` table (and any `<entity>_version_<field>` join tables) to the schema for every Doctrine class that carries at least one `#[Versioned]` property. Scalar column options (`length`, `precision`, `scale`, `enumType`, `notnull`) are copied from the source mapping.
+Adds the `<entity>_version` table (and any `<entity>_version_<field>` join tables) to the schema for every Doctrine class marked `#[Versioned]`. Scalar column options (`length`, `precision`, `scale`, `enumType`, `notnull`) are copied from the source mapping.
 
 ## `Versioner`
 

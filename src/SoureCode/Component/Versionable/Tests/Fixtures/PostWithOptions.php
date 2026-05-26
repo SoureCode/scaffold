@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_post_with_options')]
+#[Versioned]
 class PostWithOptions
 {
     #[ORM\Id]
@@ -17,15 +18,12 @@ class PostWithOptions
     #[ORM\GeneratedValue]
     public ?int $id = null;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING, length: 64)]
     public string $title = '';
 
-    #[Versioned]
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
     public string $amount = '0';
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING, enumType: PostStatus::class)]
     public PostStatus $status = PostStatus::Draft;
 }

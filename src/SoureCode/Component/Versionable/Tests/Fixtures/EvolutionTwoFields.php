@@ -10,6 +10,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'versionable_evolution_two_fields')]
+#[Versioned]
 class EvolutionTwoFields
 {
     #[ORM\Id]
@@ -17,11 +18,9 @@ class EvolutionTwoFields
     #[ORM\GeneratedValue]
     public ?int $id = null;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     public string $title = '';
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     public string $body = '';
 }

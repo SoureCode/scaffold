@@ -12,6 +12,7 @@ use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'evolution_article')]
+#[Versioned]
 class Article
 {
     #[ORM\Id]
@@ -19,14 +20,12 @@ class Article
     #[ORM\GeneratedValue]
     public ?int $id = null;
 
-    #[Versioned]
     #[ORM\Column(type: Types::STRING)]
     public string $title = '';
 
     /**
      * @var Collection<int, Tag>
      */
-    #[Versioned]
     #[ORM\ManyToMany(targetEntity: Tag::class)]
     public Collection $tags;
 
