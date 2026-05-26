@@ -12,6 +12,7 @@ use SoureCode\Bundle\LifecycleBundle\Doctrine\UpdatedByTrait;
 use SoureCode\Bundle\LifecycleBundle\Doctrine\CreatedAtTrait;
 use SoureCode\Bundle\LifecycleBundle\Doctrine\DeletedAtTrait;
 use SoureCode\Bundle\LifecycleBundle\Doctrine\UpdatedAtTrait;
+use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
@@ -30,6 +31,10 @@ class FullyDecoratedArticle
     #[ORM\Column(type: Types::INTEGER)]
     #[ORM\GeneratedValue]
     public ?int $id = null;
+
+    #[Version]
+    #[ORM\Column(type: Types::INTEGER)]
+    public int $version = 0;
 
     #[ORM\Column(type: Types::STRING)]
     public string $title;

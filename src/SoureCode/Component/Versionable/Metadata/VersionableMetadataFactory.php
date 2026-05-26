@@ -11,7 +11,9 @@ use Doctrine\ORM\Mapping\ManyToMany;
 use Doctrine\ORM\Mapping\ManyToOne;
 use Doctrine\ORM\Mapping\OneToMany;
 use Doctrine\ORM\Mapping\OneToOne;
+use Doctrine\ORM\Mapping\Version as OrmVersion;
 use SoureCode\Component\DoctrineExtensions\Metadata\AbstractBehaviorMetadataFactory;
+use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
@@ -39,11 +41,18 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
         }
 
         $bindings = [];
+        $versionField = null;
 
         if ($this->isVersionable($class)) {
             $this->walkHierarchy(
                 $class,
-                function (\ReflectionProperty $property) use (&$bindings): void {
+                function (\ReflectionProperty $property) use (&$bindings, &$versionField): void {
+                    if ($property->getAttributes(Version::class) !== []) {
+                        $versionField = $property->getName();
+
+                        return;
+                    }
+
                     if (!$this->isVersionedProperty($property)) {
                         return;
                     }
@@ -53,7 +62,7 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
             );
         }
 
-        $metadata = new VersionableMetadata($bindings);
+        $metadata = new VersionableMetadata($bindings, $versionField);
         $this->cache[$class] = $metadata;
 
         return $metadata;
@@ -92,6 +101,12 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
     private function isVersionedProperty(\ReflectionProperty $property): bool
     {
         if ($property->getAttributes(Id::class, \ReflectionAttribute::IS_INSTANCEOF) !== []) {
+            return false;
+        }
+
+        // A Doctrine optimistic-lock column is concurrency metadata, not tracked
+        // data — snapshotting it would re-apply a stale lock value on restore.
+        if ($property->getAttributes(OrmVersion::class, \ReflectionAttribute::IS_INSTANCEOF) !== []) {
             return false;
         }
 

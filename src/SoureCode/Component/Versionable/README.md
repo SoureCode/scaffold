@@ -17,6 +17,7 @@ Part of the `scaffold` monorepo. The [`versionable-bundle`](../../Bundle/Version
 ## Minimal example
 
 ```php
+use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
@@ -26,19 +27,28 @@ class Article
     #[ORM\Id, ORM\Column, ORM\GeneratedValue]
     private int $id;
 
+    #[Version]
+    #[ORM\Column]
+    private int $version = 0;
+
     #[ORM\Column]
     private string $title;
 
     #[ORM\Column(nullable: true)]
     private ?string $body = null;
+
+    public function getVersion(): int
+    {
+        return $this->version;
+    }
 }
 ```
 
-Every change to a mapped field (`title`, `body`, …) appends a row to `article_version`. The identifier is excluded. Insert is not a snapshot — the entity row itself is version 0.
+A `#[Versioned]` entity **must** declare one integer `#[Version]` field — the per-entity counter the framework maintains. Every change to a mapped field (`title`, `body`, …) bumps it and appends a row to `article_version`. The identifier and the version field are excluded from the snapshot's data. Insert is not a snapshot — a fresh entity is version `0`, its first snapshot is `1`.
 
 ## Reference
 
-- [Attributes](docs/attributes.md) — `#[Versioned]`.
+- [Attributes](docs/attributes.md) — `#[Versioned]`, `#[Version]`.
 - [Listeners](docs/listeners.md) — manual wiring (skip if using the bundle).
 - [Usage patterns](docs/usage.md) — reading history, reverting, composition.
 
@@ -84,10 +94,10 @@ The whole entity is versioned, so fields managed by other behaviors are captured
 
 ## Limits
 
-- Concurrent writers competing for the same `(entity_id, version)` are rejected by the unique index. No automatic retry — wrap your flush in a retry loop if the workload needs it.
+- The `#[Version]` counter is bumped through Doctrine's persister in the same flush. Concurrent writers can compute the same next version; the `(entity_id, version)` unique index rejects the loser. There is no automatic retry — wrap the flush in a retry loop, or add Doctrine optimistic locking (`#[ORM\Version]`) on a *separate* field if the workload needs it.
 - `target_version` is informational. Reverting does not restore historical state of related entities.
 - `applyVersion()` requires the version to exist; otherwise `RuntimeException`.
 
 ## Stability
 
-`#[Versioned]`, the `VersionerInterface` shape, and the snapshot table layout are stable. Internal classes (`VersionableListener`, `VersionableSchemaListener`) are wired through the bundle — depend on the interface, not the listeners.
+`#[Versioned]`, `#[Version]`, the `VersionerInterface` shape, and the snapshot table layout are stable. Internal classes (`VersionableListener`, `SnapshotTargetResolver`, `VersionIncrementer`, `SnapshotWriter`, `VersionableSchemaListener`) are wired through the bundle — depend on the interface, not the listeners.

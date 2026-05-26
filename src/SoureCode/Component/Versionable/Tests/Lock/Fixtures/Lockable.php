@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Component\Versionable\Tests\Fixtures;
+namespace SoureCode\Component\Versionable\Tests\Lock\Fixtures;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -10,28 +10,32 @@ use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'versionable_tag')]
+#[ORM\Table(name: 'lock_probe_entity')]
 #[Versioned]
-class Tag
+class Lockable
 {
     #[ORM\Id]
     #[ORM\Column(type: Types::INTEGER)]
     #[ORM\GeneratedValue]
-    private int $id;
+    private ?int $id = null;
 
     #[Version]
     #[ORM\Column(type: Types::INTEGER)]
     private int $version = 0;
 
-    #[ORM\Column(type: Types::STRING)]
-    private string $name;
+    #[ORM\Version]
+    #[ORM\Column(type: Types::INTEGER)]
+    private int $lockVersion = 1;
 
-    public function __construct(string $name)
+    #[ORM\Column(type: Types::STRING)]
+    private string $title;
+
+    public function __construct(string $title)
     {
-        $this->name = $name;
+        $this->title = $title;
     }
 
-    public function getId(): int
+    public function getId(): ?int
     {
         return $this->id;
     }
@@ -41,8 +45,13 @@ class Tag
         return $this->version;
     }
 
-    public function setName(string $name): void
+    public function getLockVersion(): int
     {
-        $this->name = $name;
+        return $this->lockVersion;
+    }
+
+    public function setTitle(string $title): void
+    {
+        $this->title = $title;
     }
 }

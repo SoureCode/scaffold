@@ -7,11 +7,17 @@ Use the [`VersionableBundle`](../../../Bundle/VersionableBundle/README.md) when 
 ```php
 use Doctrine\ORM\Events;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
+use SoureCode\Component\Versionable\Internal\SnapshotTargetResolver;
+use SoureCode\Component\Versionable\Internal\SnapshotWriter;
+use SoureCode\Component\Versionable\Internal\VersionIncrementer;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
+$factory = new VersionableMetadataFactory();
+
 $listener = new VersionableListener(
-    metadataFactory: new VersionableMetadataFactory(),
-    clock:           $clock, // Psr\Clock\ClockInterface
+    new SnapshotTargetResolver($factory),
+    new VersionIncrementer($factory),
+    new SnapshotWriter($factory, $clock), // $clock: Psr\Clock\ClockInterface
 );
 
 $em->getEventManager()->addEventListener([Events::onFlush, Events::postFlush], $listener);

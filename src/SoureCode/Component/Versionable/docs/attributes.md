@@ -48,3 +48,26 @@ If the target of a versioned relation is itself `Versionable`, the snapshot also
 - Collection → `target_version` column on the join table.
 
 `null` means the target had never produced a version row at snapshot time. Version numbers start at `1`; no `0` sentinel.
+
+## `#[Version]`
+
+Every `#[Versioned]` entity **must** declare one integer property marked `#[Version]` — the per-entity snapshot counter.
+
+```php
+use SoureCode\Component\Versionable\Attribute\Version;
+
+#[Version]
+#[ORM\Column]
+private int $version = 0;
+
+public function getVersion(): int
+{
+    return $this->version;
+}
+```
+
+The framework increments it once per snapshot, so `getVersion()` is the snapshot count: a fresh entity is `0`, its first snapshot is `1`. It is excluded from the snapshot's own data — it is metadata, not a tracked field.
+
+No arguments. Target: `\Attribute::TARGET_PROPERTY`.
+
+This is **not** Doctrine's `#[ORM\Version]`, which is optimistic locking — an independent, optional concern. If you want locking too, add `#[ORM\Version]` on a *separate* field; Versionable excludes that field from snapshot content automatically (a lock counter is concurrency metadata, not tracked data) and Doctrine keeps managing it.

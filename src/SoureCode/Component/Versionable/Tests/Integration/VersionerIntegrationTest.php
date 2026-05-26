@@ -13,7 +13,7 @@ use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\ORM\Tools\ToolEvents;
 use PHPUnit\Framework\TestCase;
-use SoureCode\Component\Versionable\EventListener\VersionableListener;
+use SoureCode\Component\Versionable\Tests\VersionableListenerFactory;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Tests\Fixtures\Article;
@@ -46,7 +46,7 @@ final class VersionerIntegrationTest extends TestCase
         $metadataFactory = new VersionableMetadataFactory();
         $this->entityManager->getEventManager()->addEventListener(
             [Events::onFlush, Events::postFlush],
-            new VersionableListener($metadataFactory, $this->clock),
+            VersionableListenerFactory::create($metadataFactory, $this->clock),
         );
         $this->entityManager->getEventManager()->addEventListener(
             [ToolEvents::postGenerateSchema],

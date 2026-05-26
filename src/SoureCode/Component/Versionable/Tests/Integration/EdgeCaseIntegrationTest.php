@@ -16,7 +16,7 @@ use Doctrine\ORM\Tools\ToolEvents;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
-use SoureCode\Component\Versionable\EventListener\VersionableListener;
+use SoureCode\Component\Versionable\Tests\VersionableListenerFactory;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Tests\Fixtures\Category;
@@ -51,7 +51,7 @@ final class EdgeCaseIntegrationTest extends TestCase
         $this->metadataFactory = new VersionableMetadataFactory();
         $this->entityManager->getEventManager()->addEventListener(
             [Events::onFlush, Events::postFlush],
-            new VersionableListener($this->metadataFactory, $clock),
+            VersionableListenerFactory::create($this->metadataFactory, $clock),
         );
         $this->entityManager->getEventManager()->addEventListener(
             [ToolEvents::postGenerateSchema],

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SoureCode\Component\Versionable\Tests\Fixtures;
+namespace SoureCode\Component\Versionable\Tests\VersionField\Fixtures;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -12,14 +12,14 @@ use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'versionable_rich_article')]
+#[ORM\Table(name: 'version_probe_subject')]
 #[Versioned]
-class RichArticle
+class Subject
 {
     #[ORM\Id]
     #[ORM\Column(type: Types::INTEGER)]
     #[ORM\GeneratedValue]
-    private int $id;
+    private ?int $id = null;
 
     #[Version]
     #[ORM\Column(type: Types::INTEGER)]
@@ -28,34 +28,34 @@ class RichArticle
     #[ORM\Column(type: Types::STRING)]
     private string $title;
 
-    #[ORM\ManyToOne(targetEntity: Category::class)]
-    #[ORM\JoinColumn(nullable: true)]
-    private ?Category $category = null;
+    #[ORM\Column]
+    private ProbeStatus $status = ProbeStatus::Draft;
 
-    #[ORM\OneToOne(targetEntity: Profile::class, cascade: ['persist'])]
-    #[ORM\JoinColumn(nullable: true)]
-    private ?Profile $profile = null;
+    #[ORM\Embedded(class: Geo::class)]
+    private Geo $geo;
 
-    /**
-     * @var Collection<int, Comment>
-     */
-    #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'article', cascade: ['persist'])]
-    private Collection $comments;
+    #[ORM\ManyToOne(targetEntity: Owner::class, inversedBy: 'subjects')]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Owner $owner = null;
+
+    #[ORM\OneToOne(targetEntity: Badge::class, inversedBy: 'subject')]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Badge $badge = null;
 
     /**
      * @var Collection<int, Tag>
      */
-    #[ORM\ManyToMany(targetEntity: Tag::class)]
+    #[ORM\ManyToMany(targetEntity: Tag::class, inversedBy: 'subjects')]
     private Collection $tags;
 
-    public function __construct(string $title)
+    public function __construct(string $title, Geo $geo)
     {
         $this->title = $title;
-        $this->comments = new ArrayCollection();
+        $this->geo = $geo;
         $this->tags = new ArrayCollection();
     }
 
-    public function getId(): int
+    public function getId(): ?int
     {
         return $this->id;
     }
@@ -70,21 +70,24 @@ class RichArticle
         $this->title = $title;
     }
 
-    public function setCategory(?Category $category): void
+    public function setStatus(ProbeStatus $status): void
     {
-        $this->category = $category;
+        $this->status = $status;
     }
 
-    public function setProfile(?Profile $profile): void
+    public function setGeo(Geo $geo): void
     {
-        $this->profile = $profile;
+        $this->geo = $geo;
     }
 
-    public function addComment(Comment $comment): void
+    public function setOwner(?Owner $owner): void
     {
-        if (!$this->comments->contains($comment)) {
-            $this->comments->add($comment);
-        }
+        $this->owner = $owner;
+    }
+
+    public function setBadge(?Badge $badge): void
+    {
+        $this->badge = $badge;
     }
 
     public function addTag(Tag $tag): void

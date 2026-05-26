@@ -6,6 +6,7 @@ namespace SoureCode\Component\Versionable\Tests\Fixtures;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
@@ -17,6 +18,10 @@ class Node
     #[ORM\Column(type: Types::INTEGER)]
     #[ORM\GeneratedValue]
     private int $id;
+
+    #[Version]
+    #[ORM\Column(type: Types::INTEGER)]
+    private int $version = 0;
 
     #[ORM\Column(type: Types::STRING)]
     private string $label;
@@ -33,6 +38,11 @@ class Node
     public function getId(): int
     {
         return $this->id;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function setLabel(string $label): void

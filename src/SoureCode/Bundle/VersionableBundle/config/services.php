@@ -8,6 +8,9 @@ use Psr\Log\LoggerInterface;
 use SoureCode\Bundle\VersionableBundle\Security\Voter\VersionableVoter;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
+use SoureCode\Component\Versionable\Internal\SnapshotTargetResolver;
+use SoureCode\Component\Versionable\Internal\SnapshotWriter;
+use SoureCode\Component\Versionable\Internal\VersionIncrementer;
 use SoureCode\Component\Versionable\Messenger\PruneVersionableHistoryHandler;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Versioner;
@@ -25,10 +28,24 @@ return static function (ContainerConfigurator $container): void {
     // VersionableSchemaListener live exclusively in VersionableBundle::loadExtension
     // so listener priorities have a single source of truth.
 
-    $services->set(VersionableListener::class)
+    $services->set(SnapshotTargetResolver::class)
+        ->args([service(VersionableMetadataFactory::class)]);
+
+    $services->set(VersionIncrementer::class)
+        ->args([service(VersionableMetadataFactory::class)]);
+
+    $services->set(SnapshotWriter::class)
         ->args([
             service(VersionableMetadataFactory::class),
             service(ClockInterface::class),
+            service(LoggerInterface::class)->nullOnInvalid(),
+        ]);
+
+    $services->set(VersionableListener::class)
+        ->args([
+            service(SnapshotTargetResolver::class),
+            service(VersionIncrementer::class),
+            service(SnapshotWriter::class),
             service(LoggerInterface::class)->nullOnInvalid(),
         ]);
 

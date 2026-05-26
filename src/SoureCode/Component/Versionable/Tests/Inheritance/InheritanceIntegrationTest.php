@@ -14,7 +14,7 @@ use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\ORM\Tools\ToolEvents;
 use PHPUnit\Framework\TestCase;
-use SoureCode\Component\Versionable\EventListener\VersionableListener;
+use SoureCode\Component\Versionable\Tests\VersionableListenerFactory;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Tests\Inheritance\Fixtures\InheritedAnnouncement;
@@ -49,7 +49,7 @@ final class InheritanceIntegrationTest extends TestCase
         $factory = new VersionableMetadataFactory();
         $this->entityManager->getEventManager()->addEventListener(
             [Events::onFlush, Events::postFlush],
-            new VersionableListener($factory, $clock),
+            VersionableListenerFactory::create($factory, $clock),
         );
         $this->entityManager->getEventManager()->addEventListener(
             [ToolEvents::postGenerateSchema],

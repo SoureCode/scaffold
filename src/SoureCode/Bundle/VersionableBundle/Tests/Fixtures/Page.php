@@ -6,6 +6,7 @@ namespace SoureCode\Bundle\VersionableBundle\Tests\Fixtures;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
 #[ORM\Entity]
@@ -17,6 +18,10 @@ class Page
     #[ORM\Column(type: Types::INTEGER)]
     #[ORM\GeneratedValue]
     public ?int $id = null;
+
+    #[Version]
+    #[ORM\Column(type: Types::INTEGER)]
+    public int $version = 0;
 
     #[ORM\Column(type: Types::STRING)]
     public string $title;

@@ -11,6 +11,7 @@ final class VersionableMetadata
      */
     public function __construct(
         public readonly array $bindings,
+        public readonly ?string $versionField = null,
     ) {
     }
 
