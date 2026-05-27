@@ -62,11 +62,11 @@ So a row's full test is: *make the change → assert the bump → assert isolati
 | 5 | n:1 (`owner`) | entity → other | ✅ +1 | both `Owner`s +1 | ✅ |
 | 6 | n:1 (`owner`) | entity → null | ✅ +1 | old `Owner` +1 | ✅ |
 | 7 | 1:1 owning (`badge`) | null → entity | ✅ +1 | `Badge` +1 (1:1 inverse) | ✅ |
-| 8 | 1:1 owning (`badge`) | entity → other | ✅ +1 | both `Badge`s +1 | ⬜ |
-| 9 | 1:1 owning (`badge`) | entity → null | ✅ +1 | old `Badge` +1 | ⬜ |
+| 8 | 1:1 owning (`badge`) | entity → other | ✅ +1 | both `Badge`s +1 | ✅ |
+| 9 | 1:1 owning (`badge`) | entity → null | ✅ +1 | old `Badge` +1 | ✅ |
 | 10 | n:m (`tags`) | add | ✅ +1 | added `Tag` +1 (element) | ✅ |
 | 11 | n:m (`tags`) | remove | ✅ +1 | removed `Tag` +1 | ✅ |
-| 12 | n:m (`tags`) | clear | ✅ +1 | each removed `Tag` +1 | ⬜ |
+| 12 | n:m (`tags`) | clear | ✅ +1 | each removed `Tag` +1 | ✅ |
 
 ## Combination cases — one flush, multiple changes → each affected entity bumps **exactly once**
 
@@ -74,52 +74,56 @@ So a row's full test is: *make the change → assert the bump → assert isolati
 
 | # | Combo | Entities bumped (×1 each) | Status |
 |---|-------|----------------------------|--------|
-| 13 | a+b | Subject | ⬜ |
-| 14 | a+c | Subject | ⬜ |
-| 15 | a+d | Subject, Owner | ⬜ |
-| 16 | a+e | Subject, Badge | ⬜ |
+| 13 | a+b | Subject | ✅ |
+| 14 | a+c | Subject | ✅ |
+| 15 | a+d | Subject, Owner | ✅ |
+| 16 | a+e | Subject, Badge | ✅ |
 | 17 | a+f | Subject, Tag | ✅ |
-| 18 | b+c | Subject | ⬜ |
-| 19 | b+d | Subject, Owner | ⬜ |
-| 20 | b+e | Subject, Badge | ⬜ |
-| 21 | b+f | Subject, Tag | ⬜ |
-| 22 | c+d | Subject, Owner | ⬜ |
-| 23 | c+e | Subject, Badge | ⬜ |
-| 24 | c+f | Subject, Tag | ⬜ |
-| 25 | d+e | Subject, Owner, Badge | ⬜ |
-| 26 | d+f | Subject, Owner, Tag | ⬜ |
-| 27 | e+f | Subject, Badge, Tag | ⬜ |
+| 18 | b+c | Subject | ✅ |
+| 19 | b+d | Subject, Owner | ✅ |
+| 20 | b+e | Subject, Badge | ✅ |
+| 21 | b+f | Subject, Tag | ✅ |
+| 22 | c+d | Subject, Owner | ✅ |
+| 23 | c+e | Subject, Badge | ✅ |
+| 24 | c+f | Subject, Tag | ✅ |
+| 25 | d+e | Subject, Owner, Badge | ✅ |
+| 26 | d+f | Subject, Owner, Tag | ✅ |
+| 27 | e+f | Subject, Badge, Tag | ✅ |
 
 ### Higher-order
 
 | # | Combo | Entities bumped (×1 each) | Status |
 |---|-------|----------------------------|--------|
-| 28 | a+b+c (all own-row) | Subject | ⬜ |
+| 28 | a+b+c (all own-row) | Subject | ✅ |
 | 29 | d+e+f (all relations) | Subject, Owner, Badge, Tag | ✅ |
 | 30 | a+d+e+f (scalar + all relations) | Subject, Owner, Badge, Tag | ✅ |
-| 31 | two tags added in one flush | Subject (once), both Tags | ⬜ |
-| 32 | tag added + tag removed in one flush | Subject (once), both Tags | ⬜ |
+| 31 | two tags added in one flush | Subject (once), both Tags | ✅ |
+| 32 | tag added + tag removed in one flush | Subject (once), both Tags | ✅ |
 
 ## Boundary
 
 | # | Case | Expected | Status |
 |---|------|----------|--------|
 | 33 | Insert | seeds `version` (0), no bump, no snapshot | ✅ |
+| 33b | Aggregate insert (owner + populated collection) | owner stays `0`; an existing element it references still bumps | ✅ |
 | 34 | No-op flush — **stability** | nothing changed → no bump, no snapshot, anywhere | ✅ |
 | 35 | Re-flush after a bump — **stability** | version write leaves the entity clean → no extra bump | ✅ |
 | 35b | **Isolation** | an unrelated change on one entity never bumps the other | ✅ |
 | 36 | Concurrent change, `lock` enabled (`#[ORM\Version]`) | `OptimisticLockException` | ✅ |
 | 36b | `lock` field present | excluded from snapshot content; our counter still bumps | ✅ |
-| 37 | Concurrent change, no `lock` | both append, distinct versions | ⬜ |
+| 37 | Concurrent change, no `lock` | sequential writers append distinct versions; a colliding write hits the `(entity_id, version)` unique index | ✅ |
+| 42 | Delete an entity (with relations) | no tombstone snapshot; every bidirectional survivor (n:1 / 1:1 / n:m) bumps | ✅ |
+| 42b | Delete inverse-side n:m endpoint (e.g. `Tag`) | owning-side referencers (`Subject`s) bump — resolved via a DQL lookup against the owning side, since the inverse in-memory collection is not auto-synced | ✅ |
+| 42c | Delete both ends of an n:m | neither bumps — both are guarded by `isScheduledForDeletion` | ✅ |
 
 ## Structural variants
 
 | # | Case | Expected | Status |
 |---|------|----------|--------|
-| 38 | Self-referential n:1 (`Node.parent`) | self +1; parent +1 if bidirectional | ⬜ |
-| 39 | STI subclass field change | +1 on shared version field | ⬜ |
-| 40 | `OneToMany` with `orphanRemoval` | owner +1; removed child handled | ⬜ |
-| 41 | Enum read-back from snapshot | enum restored (write fixed; read pending) | ⬜ |
+| 38 | Self-referential n:1 (`Tests/SelfRef`) | self +1; parent +1 only if bidirectional | ✅ |
+| 39 | STI subclass field change | +1 on shared version field | ✅ |
+| 40 | `OneToMany` with `orphanRemoval` | owner +1; removed child deleted, no snapshot | ✅ |
+| 41 | Enum read-back from snapshot | stored as backing value, reads back to the case | ✅ |
 
 ## Status
 
@@ -127,4 +131,8 @@ Both sides now bump for every cardinality. `SnapshotTargetResolver` resolves inv
 
 A host's optional Doctrine `#[ORM\Version]` lock is supported (`Tests/Lock/LockTest`): the factory excludes it from snapshot content, our counter bumps independently, and Doctrine still raises `OptimisticLockException` on a concurrent change (`#36`, `#36b`).
 
-Still `⬜` (documented, not yet asserted): the remaining single-op variants (entity→other / →null, remove / clear), most pairwise combos, the no-`lock` race (`#37`), and the structural variants (`#38`–`#41`).
+Insert is uniformly not a snapshot, even for aggregates: a new owner persisted with a populated collection in one flush stays at `0`, while an existing element it references still bumps (`#33b`, `Tests/Orphan`, `SnapshotTargetResolver::collectCollectionTargets`). No-lock concurrency rests on the `(entity_id, version)` unique index (`#37`, `Tests/Concurrency`). Structural shapes — self-reference, STI, `orphanRemoval` — bump on the same rules as flat entities (`#38`–`#40`, `Tests/SelfRef`, `Tests/Inheritance`, `Tests/Orphan`).
+
+Deleting an entity is not a snapshot: the removed row gets no tombstone, and every bidirectional survivor bumps because its relationship set changed — n:1 / 1:1 via `inverseOwnersFromCurrent` (in-memory single-valued associations), n:m via `manyToManyElementsOfDeleted` (owning-side in-memory collection, inverse-side DQL lookup against the owning side, since the inverse collection is not auto-synced). Both ends deleted → neither bumps (`#42`/`#42b`/`#42c`, `Tests/VersionField`).
+
+Every row is `✅`.

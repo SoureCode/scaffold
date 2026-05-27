@@ -67,6 +67,14 @@ final class SnapshotTargetResolver
 
                 $targets[$owner] = true;
             }
+
+            foreach ($this->manyToManyElementsOfDeleted($deletion, $unitOfWork, $entityManager) as $element) {
+                if ($this->isScheduledForDeletion($element, $unitOfWork)) {
+                    continue;
+                }
+
+                $targets[$element] = true;
+            }
         }
 
         return $targets;
@@ -88,7 +96,12 @@ final class SnapshotTargetResolver
             return;
         }
 
-        $targets[$owner] = true;
+        // An insert is not a snapshot — a new owner populating its collection
+        // for the first time does not bump. Existing elements still do, so the
+        // guard wraps only the owner.
+        if (!$unitOfWork->isScheduledForInsert($owner)) {
+            $targets[$owner] = true;
+        }
 
         foreach ($this->changedManyToManyElements($collection, $unitOfWork, $entityManager) as $element) {
             $targets[$element] = true;
@@ -159,6 +172,79 @@ final class SnapshotTargetResolver
 
         if ($this->mapsInverseOf($owner, $field, $entityManager)) {
             yield $owner;
+        }
+    }
+
+    /**
+     * @return iterable<object>
+     */
+    private function manyToManyElementsOfDeleted(
+        object $entity,
+        UnitOfWork $unitOfWork,
+        EntityManagerInterface $entityManager,
+    ): iterable {
+        $classMetadata = $entityManager->getClassMetadata($entity::class);
+
+        foreach ($classMetadata->associationMappings as $field => $assoc) {
+            if (!$assoc->isManyToMany()) {
+                continue;
+            }
+
+            $mappedBy = $assoc->mappedBy ?? null;
+            $inversedBy = $assoc->inversedBy ?? null;
+
+            if ($mappedBy === null && $inversedBy === null) {
+                continue;
+            }
+
+            if ($mappedBy === null) {
+                $collection = $classMetadata->getReflectionProperty($field)->getValue($entity);
+
+                if (!is_iterable($collection)) {
+                    continue;
+                }
+
+                foreach ($collection as $element) {
+                    if (!is_object($element)) {
+                        continue;
+                    }
+
+                    if ($unitOfWork->isScheduledForInsert($element)) {
+                        continue;
+                    }
+
+                    if (!$this->metadataFactory->isVersionable($element::class)) {
+                        continue;
+                    }
+
+                    yield $element;
+                }
+
+                continue;
+            }
+
+            $targetEntity = $assoc->targetEntity;
+
+            if (!$this->metadataFactory->isVersionable($targetEntity)) {
+                continue;
+            }
+
+            $referencing = $entityManager->createQueryBuilder()
+                ->select('owningSide')
+                ->from($targetEntity, 'owningSide')
+                ->innerJoin('owningSide.' . $mappedBy, 'deletedEntity')
+                ->where('deletedEntity = :deleted')
+                ->setParameter('deleted', $entity)
+                ->getQuery()
+                ->getResult();
+
+            foreach ($referencing as $element) {
+                if ($unitOfWork->isScheduledForInsert($element)) {
+                    continue;
+                }
+
+                yield $element;
+            }
         }
     }
 

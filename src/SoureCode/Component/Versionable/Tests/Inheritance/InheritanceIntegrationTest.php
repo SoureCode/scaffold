@@ -128,4 +128,17 @@ final class InheritanceIntegrationTest extends TestCase
         self::assertSame('a-v2', $row['title']);
         self::assertSame('staff', $row['audience']);
     }
+
+    public function testSubclassFieldChangeBumpsSharedVersion(): void // #39
+    {
+        $memo = new InheritedMemo('memo');
+        $this->entityManager->persist($memo);
+        $this->entityManager->flush();
+        self::assertSame(0, $memo->getVersion(), 'insert is not a bump');
+
+        $memo->setAuthorNote('changed');
+        $this->entityManager->flush();
+
+        self::assertSame(1, $memo->getVersion(), 'a subclass-only field change bumps the shared version field');
+    }
 }
