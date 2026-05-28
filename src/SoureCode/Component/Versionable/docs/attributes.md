@@ -34,7 +34,7 @@ class AuditEntry { … }
 
 | Argument | Default | Meaning |
 |----------|---------|---------|
-| `bumpRelations` | `true` | Class default for "does a relationship change ripple to the other end's snapshot?" — `true` bumps both sides on a relation change, `false` only bumps the side that owns the change. Can be overridden per flush with `Versioner::bumpRelations(bool)`. |
+| `bumpRelations` | `null` | Per-class override for "does a relationship change ripple to the other end's snapshot?" — `true` bumps both sides on a relation change, `false` only bumps the side that owns the change. `null` (the default) means "no opinion — use the global default" (configured via `versionable.bump_relations`, which itself defaults to `true`). The runtime one-shot `Versioner::bumpRelations(bool)` still wins over both. |
 
 Target: `\Attribute::TARGET_CLASS`. Mark the root of an inheritance hierarchy once; subclasses are versioned too.
 

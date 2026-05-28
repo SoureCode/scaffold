@@ -99,7 +99,25 @@ To make a whole class default to "no ripple" (then optionally override per flush
 class AuditEntry { … }
 ```
 
-The runtime flag, when set, wins for the duration of the flush; otherwise each entity follows its own class-level default.
+To flip the **global** default across every entity that doesn't set its own attribute, configure the bundle:
+
+```yaml
+# config/packages/versionable.yaml
+versionable:
+    bump_relations: false   # default: true (today's behavior)
+```
+
+### Precedence (top wins)
+
+| Source | When it applies |
+|--------|-----------------|
+| `Versioner::bumpRelations(bool)` runtime override | The very next flush |
+| `Versioner::applyVersion(..., bumpRelations: false)` | Same — sugar for the runtime override |
+| `#[Versioned(bumpRelations: true \| false)]` attribute | Whenever the class explicitly opts in or out |
+| `versionable.bump_relations` global config | Default for classes that leave the attribute unset (or set it to `null`) |
+| Built-in default | `true` |
+
+`#[Versioned]` with no argument means "no opinion — use the global default."
 
 ## Composition
 

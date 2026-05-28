@@ -63,7 +63,7 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
             );
         }
 
-        $metadata = new VersionableMetadata($bindings, $versionField, $attribute?->bumpRelations ?? true);
+        $metadata = new VersionableMetadata($bindings, $versionField, $attribute?->bumpRelations);
         $this->cache[$class] = $metadata;
 
         return $metadata;

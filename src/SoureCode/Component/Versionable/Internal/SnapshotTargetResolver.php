@@ -34,7 +34,13 @@ final class SnapshotTargetResolver
             return $override;
         }
 
-        return $this->metadataFactory->getMetadataFor($entity::class)->bumpRelations;
+        $classDefault = $this->metadataFactory->getMetadataFor($entity::class)->bumpRelations;
+
+        if ($classDefault !== null) {
+            return $classDefault;
+        }
+
+        return $this->relationBumpState->getGlobalDefault();
     }
 
     /**

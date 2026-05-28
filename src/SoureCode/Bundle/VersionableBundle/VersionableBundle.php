@@ -11,6 +11,7 @@ use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedLis
 use SoureCode\Component\Versionable\EventListener\VersionableClassMetadataListener;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
+use SoureCode\Component\Versionable\Internal\RelationBumpState;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -28,11 +29,15 @@ final class VersionableBundle extends AbstractBundle
                     'post_generate_schema' => 0,
                     'load_class_metadata' => 0,
                 ]))
+                ->booleanNode('bump_relations')
+                    ->info('Global default for relationship-bump propagation. `true` (today\'s behavior): a relation change bumps both ends. `false`: only the side that owns the change bumps. Per-class `#[Versioned(bumpRelations: …)]` and per-flush `Versioner::bumpRelations(...)` override this default.')
+                    ->defaultTrue()
+                ->end()
             ->end();
     }
 
     /**
-     * @param array{listener_priorities: array{on_flush: int, post_flush: int, post_generate_schema: int, load_class_metadata: int}} $config
+     * @param array{listener_priorities: array{on_flush: int, post_flush: int, post_generate_schema: int, load_class_metadata: int}, bump_relations: bool} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
@@ -50,5 +55,8 @@ final class VersionableBundle extends AbstractBundle
         PrioritizedListenerRegistrar::register($builder, VersionableClassMetadataListener::class, [
             Events::loadClassMetadata => $config['listener_priorities']['load_class_metadata'],
         ]);
+
+        $builder->getDefinition(RelationBumpState::class)
+            ->addMethodCall('setGlobalDefault', [$config['bump_relations']]);
     }
 }

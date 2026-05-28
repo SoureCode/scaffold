@@ -12,7 +12,7 @@ final class VersionableMetadata
     public function __construct(
         public readonly array $bindings,
         public readonly ?string $versionField = null,
-        public readonly bool $bumpRelations = true,
+        public readonly ?bool $bumpRelations = null,
     ) {
     }
 

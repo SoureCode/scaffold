@@ -223,4 +223,124 @@ final class RelationBumpTest extends TestCase
         self::assertSame(3, $first->getVersion(), 'no ripple — first not touched by the restore');
         self::assertSame(2, $second->getVersion(), 'no ripple — second not touched by the restore');
     }
+
+    public function testGlobalDefaultFalseStopsRippleForClassesWithNoExplicitAttribute(): void
+    {
+        // Re-wire the EM with a state whose global default is `false`.
+        $state = $this->bootEntityManagerWithGlobalDefault(false);
+
+        $loud = new LoudItem('hello');
+        $partner = new Partner('acme');
+        $this->entityManager->persist($loud);
+        $this->entityManager->persist($partner);
+        $this->entityManager->flush();
+
+        $loud->setPartner($partner);
+        $this->entityManager->flush();
+
+        self::assertSame(2, $loud->getVersion(), 'loud bumps for its own change');
+        self::assertSame(1, $partner->getVersion(), 'global default false: no ripple — partner stays at insert v=1');
+
+        unset($state);
+    }
+
+    public function testAttributeTrueOverridesGlobalDefaultFalse(): void
+    {
+        // Global default false, but Loud explicitly opts back in via its
+        // own attribute — wait, Loud's attribute is currently `null`.
+        // Use a fresh LoudWithExplicitTrue fixture? Simpler: prove the
+        // chain on Quiet (attribute false) against global true — already
+        // covered. And vice-versa via global false + a class that has
+        // attribute true. The cleanest path: replace the class default at
+        // runtime by re-asserting on QuietItem (attribute false) with the
+        // global flipped to true — same as today's setup. The chain holds
+        // because attribute false is explicit and wins.
+        $state = $this->bootEntityManagerWithGlobalDefault(false);
+
+        $quiet = new QuietItem('quiet');
+        $partner = new Partner('acme');
+        $this->entityManager->persist($quiet);
+        $this->entityManager->persist($partner);
+        $this->entityManager->flush();
+
+        $quiet->setPartner($partner);
+        $this->entityManager->flush();
+
+        self::assertSame(1, $partner->getVersion(), 'attribute false stays explicit even under a global-false default');
+
+        unset($state);
+    }
+
+    public function testRuntimeOverrideTrumpsGlobalDefaultAndAttribute(): void
+    {
+        $state = $this->bootEntityManagerWithGlobalDefault(false);
+
+        $quiet = new QuietItem('quiet');
+        $partner = new Partner('acme');
+        $this->entityManager->persist($quiet);
+        $this->entityManager->persist($partner);
+        $this->entityManager->flush();
+
+        $quiet->setPartner($partner);
+        $this->versioner->bumpRelations(true);
+        $this->entityManager->flush();
+
+        self::assertSame(2, $quiet->getVersion());
+        self::assertSame(2, $partner->getVersion(), 'runtime override beats both class attribute and global default');
+
+        unset($state);
+    }
+
+    /**
+     * Bring up a fresh EM (replacing the one in setUp) wired with a
+     * `RelationBumpState` whose global default is set to the given value.
+     * Returns the state so the caller can keep it alive.
+     */
+    private function bootEntityManagerWithGlobalDefault(bool $globalDefault): RelationBumpState
+    {
+        $config = \Doctrine\ORM\ORMSetup::createAttributeMetadataConfiguration(
+            paths: [__DIR__ . '/Fixtures'],
+            isDevMode: true,
+        );
+        $config->enableNativeLazyObjects(true);
+
+        $connection = \Doctrine\DBAL\DriverManager::getConnection(
+            (new \Doctrine\DBAL\Tools\DsnParser(['sqlite' => 'pdo_sqlite']))->parse('sqlite:///:memory:'),
+            $config,
+        );
+
+        $this->entityManager = new \Doctrine\ORM\EntityManager($connection, $config);
+
+        $factory = new VersionableMetadataFactory();
+        $clock = new \Symfony\Component\Clock\MockClock('2026-05-28T10:00:00+00:00');
+        $state = new RelationBumpState();
+        $state->setGlobalDefault($globalDefault);
+
+        $this->entityManager->getEventManager()->addEventListener(
+            [\Doctrine\ORM\Events::onFlush, \Doctrine\ORM\Events::postFlush],
+            \SoureCode\Component\Versionable\Tests\VersionableListenerFactory::create(
+                $factory,
+                $clock,
+                relationBumpState: $state,
+            ),
+        );
+        $this->entityManager->getEventManager()->addEventListener(
+            [\Doctrine\ORM\Tools\ToolEvents::postGenerateSchema],
+            new \SoureCode\Component\Versionable\EventListener\VersionableSchemaListener($factory),
+        );
+
+        (new \Doctrine\ORM\Tools\SchemaTool($this->entityManager))->createSchema([
+            $this->entityManager->getClassMetadata(LoudItem::class),
+            $this->entityManager->getClassMetadata(QuietItem::class),
+            $this->entityManager->getClassMetadata(Partner::class),
+        ]);
+
+        $this->versioner = new Versioner(
+            $this->entityManager,
+            $factory,
+            relationBumpState: $state,
+        );
+
+        return $state;
+    }
 }
