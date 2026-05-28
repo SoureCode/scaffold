@@ -96,7 +96,11 @@ final class VersionRowApplier
             $assoc = $classMetadata->getAssociationMapping($name);
 
             if ($classMetadata->isSingleValuedAssociation($name)) {
-                $targetId = $row[$name . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX] ?? null;
+                if (!$assoc->isOwningSide()) {
+                    continue;
+                }
+
+                $targetId = $row[ColumnNamer::singleAssociationId($assoc)] ?? null;
                 // Route through findOneBy so the existence check actually runs a SELECT;
                 // EntityManager::find returns an uninitialized lazy ghost for missing ids
                 // under PHP 8.4+ native lazy objects, which would silence the warning below.

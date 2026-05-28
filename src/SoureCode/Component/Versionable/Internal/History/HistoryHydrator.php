@@ -7,6 +7,7 @@ namespace SoureCode\Component\Versionable\Internal\History;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use SoureCode\Component\Versionable\EventListener\VersionTableColumns;
+use SoureCode\Component\Versionable\Internal\ColumnNamer;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 /**
@@ -99,9 +100,15 @@ final class HistoryHydrator
             $targetIsVersioned = $this->metadataFactory->isVersionable($targetClass);
 
             if ($classMetadata->isSingleValuedAssociation($fieldName)) {
+                if (!$assoc->isOwningSide()) {
+                    $arguments[$fieldName] = null;
+
+                    continue;
+                }
+
                 $arguments[$fieldName] = $targetIsVersioned
-                    ? $this->hydrateSingleRelation($fieldName, $targetClass, $row, $visited)
-                    : $this->loadLiveSingleRelation($fieldName, $targetClass, $row);
+                    ? $this->hydrateSingleRelation($assoc, $targetClass, $row, $visited)
+                    : $this->loadLiveSingleRelation($assoc, $targetClass, $row);
 
                 continue;
             }
@@ -159,9 +166,9 @@ final class HistoryHydrator
      * @param class-string $targetClass
      * @param array<string, mixed> $row
      */
-    private function loadLiveSingleRelation(string $fieldName, string $targetClass, array $row): ?object
+    private function loadLiveSingleRelation(\Doctrine\ORM\Mapping\AssociationMapping $assoc, string $targetClass, array $row): ?object
     {
-        $idColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX;
+        $idColumn = ColumnNamer::singleAssociationId($assoc);
         $targetId = $row[$idColumn] ?? null;
 
         if ($targetId === null) {
@@ -220,13 +227,13 @@ final class HistoryHydrator
     }
 
     private function hydrateSingleRelation(
-        string $fieldName,
+        \Doctrine\ORM\Mapping\AssociationMapping $assoc,
         string $targetClass,
         array $row,
         array &$visited,
     ): ?object {
-        $idColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX;
-        $versionColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX;
+        $idColumn = ColumnNamer::singleAssociationId($assoc);
+        $versionColumn = ColumnNamer::singleAssociationVersion($assoc);
 
         $targetId = $row[$idColumn] ?? null;
         $targetVersion = $row[$versionColumn] ?? null;

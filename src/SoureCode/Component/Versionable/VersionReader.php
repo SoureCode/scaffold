@@ -8,6 +8,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use SoureCode\Component\Versionable\EventListener\VersionTableColumns;
+use SoureCode\Component\Versionable\Internal\ColumnNamer;
 use SoureCode\Component\Versionable\Internal\History\HistoryHydrator;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
@@ -176,7 +177,7 @@ final class VersionReader
             }
 
             if ($classMetadata->isSingleValuedAssociation($fieldName)) {
-                $idColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX;
+                $idColumn = ColumnNamer::singleAssociationId($classMetadata->getAssociationMapping($fieldName));
                 $before = $beforeRow[$idColumn] ?? null;
                 $after = $afterRow[$idColumn] ?? null;
 

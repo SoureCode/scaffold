@@ -319,7 +319,7 @@ final class CascadeRestoreIntegrationTest extends TestCase
     private function fetchCapturedCategoryVersion(int $articleId, int $articleVersion): ?int
     {
         $value = $this->entityManager->getConnection()->createQueryBuilder()
-            ->select('category' . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX)
+            ->select('category_version')
             ->from('versionable_rich_article_version')
             ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->andWhere(VersionTableColumns::VERSION . ' = :version')

@@ -7,6 +7,7 @@ namespace SoureCode\Component\Versionable\Internal\History;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use SoureCode\Component\Versionable\EventListener\VersionTableColumns;
+use SoureCode\Component\Versionable\Internal\ColumnNamer;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 /**
@@ -75,8 +76,8 @@ final class HistoryRegistry
         $idType = Type::getType($classMetadata->getFieldMapping($idField)->type);
         $idDbValue = $idType->convertToDatabaseValue($entityId, $platform);
 
-        $pinColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX;
-        $fkColumn = $classMetadata->getSingleAssociationJoinColumnName($fieldName);
+        $pinColumn = ColumnNamer::singleAssociationVersion($assoc);
+        $fkColumn = ColumnNamer::singleAssociationId($assoc);
 
         $row = $connection->createQueryBuilder()
             ->select($pinColumn, $fkColumn)

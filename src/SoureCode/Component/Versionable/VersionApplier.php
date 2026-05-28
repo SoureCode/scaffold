@@ -6,6 +6,7 @@ namespace SoureCode\Component\Versionable;
 
 use Doctrine\ORM\EntityManagerInterface;
 use SoureCode\Component\Versionable\EventListener\VersionTableColumns;
+use SoureCode\Component\Versionable\Internal\ColumnNamer;
 use SoureCode\Component\Versionable\Internal\VersionRowApplier;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
@@ -131,7 +132,11 @@ final class VersionApplier
             }
 
             if ($classMetadata->isSingleValuedAssociation($name)) {
-                $targetVersion = $row[$name . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX] ?? null;
+                if (!$assoc->isOwningSide()) {
+                    continue;
+                }
+
+                $targetVersion = $row[ColumnNamer::singleAssociationVersion($assoc)] ?? null;
                 $related = $binding->property->getValue($entity);
 
                 if ($targetVersion !== null && is_object($related)) {

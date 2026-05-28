@@ -118,11 +118,17 @@ final class SnapshotWriter
             }
 
             if ($classMetadata->isSingleValuedAssociation($fieldName)) {
-                [$idValue, $targetVersion] = $this->captureSingleAssociation($entity, $binding, $classMetadata, $connection, $entityManager);
-                $row[$fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX] = $idValue;
+                $assoc = $classMetadata->getAssociationMapping($fieldName);
 
-                if ($this->metadataFactory->isVersionable($classMetadata->getAssociationMapping($fieldName)->targetEntity)) {
-                    $row[$fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX] = $targetVersion;
+                if (!$assoc->isOwningSide()) {
+                    continue;
+                }
+
+                [$idValue, $targetVersion] = $this->captureSingleAssociation($entity, $binding, $classMetadata, $connection, $entityManager);
+                $row[ColumnNamer::singleAssociationId($assoc)] = $idValue;
+
+                if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
+                    $row[ColumnNamer::singleAssociationVersion($assoc)] = $targetVersion;
                 }
 
                 continue;

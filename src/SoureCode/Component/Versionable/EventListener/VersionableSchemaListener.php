@@ -10,6 +10,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
+use SoureCode\Component\Versionable\Internal\ColumnNamer;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 use SoureCode\Component\Versionable\Metadata\VersionedBinding;
 
@@ -88,7 +89,7 @@ final class VersionableSchemaListener
                 continue;
             }
 
-            $pinColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX;
+            $pinColumn = ColumnNamer::singleAssociationVersion($assoc);
 
             if ($liveTable->hasColumn($pinColumn)) {
                 continue;
@@ -262,11 +263,16 @@ final class VersionableSchemaListener
         ClassMetadataFactory $factory,
     ): void {
         $assoc = $source->getAssociationMapping($fieldName);
+
+        if (!$assoc->isOwningSide()) {
+            return;
+        }
+
         $targetMetadata = $factory->getMetadataFor($assoc->targetEntity);
         $targetIdField = $targetMetadata->getSingleIdentifierFieldName();
         $targetIdType = $targetMetadata->getFieldMapping($targetIdField)->type;
 
-        $columnName = $fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX;
+        $columnName = ColumnNamer::singleAssociationId($assoc);
 
         if ($table->hasColumn($columnName)) {
             return;
@@ -276,7 +282,7 @@ final class VersionableSchemaListener
         $table->addIndex([$columnName]);
 
         if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
-            $table->addColumn($fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX, Types::INTEGER, ['notnull' => false]);
+            $table->addColumn(ColumnNamer::singleAssociationVersion($assoc), Types::INTEGER, ['notnull' => false]);
         }
     }
 

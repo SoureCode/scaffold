@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace SoureCode\Component\Versionable\Internal;
 
 use Doctrine\ORM\EntityManagerInterface;
-use SoureCode\Component\Versionable\EventListener\VersionTableColumns;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 /**
@@ -55,7 +54,7 @@ final class PinMaintainer
             }
 
             $related = $binding->property->getValue($entity);
-            $pinColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX;
+            $pinColumn = ColumnNamer::singleAssociationVersion($assoc);
 
             if ($related === null) {
                 $pins[$pinColumn] = null;

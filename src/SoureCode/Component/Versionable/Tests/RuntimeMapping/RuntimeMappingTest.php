@@ -81,8 +81,8 @@ final class RuntimeMappingTest extends TestCase
 
         $names = array_map(static fn ($column) => $column->getName(), $columns);
 
-        self::assertContains('createdBy_id', $names, 'listener-added association lands on the version table');
-        self::assertContains('createdBy_version', $names, 'and the pin column too, since the target is versioned');
+        self::assertContains('created_by_id', $names, 'listener-added association lands on the version table under Doctrine\'s joinColumn name');
+        self::assertContains('created_by_version', $names, 'and the pin column too, derived from the joinColumn name');
     }
 
     public function testSnapshotRowCapturesListenerAddedAssociation(): void
@@ -97,13 +97,13 @@ final class RuntimeMappingTest extends TestCase
         $this->entityManager->flush();
 
         $row = $this->entityManager->getConnection()->fetchAssociative(
-            'SELECT createdBy_id, createdBy_version FROM rtmap_task_version WHERE entity_id = ? ORDER BY version DESC LIMIT 1',
+            'SELECT created_by_id, created_by_version FROM rtmap_task_version WHERE entity_id = ? ORDER BY version DESC LIMIT 1',
             [$task->getId()],
         );
 
         self::assertIsArray($row);
-        self::assertSame($partner->getId(), (int) $row['createdBy_id'], 'snapshot row captures the FK of the listener-added association');
-        self::assertSame($partner->getVersion(), (int) $row['createdBy_version'], 'and pins it at the target\'s current version');
+        self::assertSame($partner->getId(), (int) $row['created_by_id'], 'snapshot row captures the FK of the listener-added association');
+        self::assertSame($partner->getVersion(), (int) $row['created_by_version'], 'and pins it at the target\'s current version');
     }
 
     public function testLivePinColumnIsWrittenForListenerAddedAssociation(): void
@@ -116,12 +116,12 @@ final class RuntimeMappingTest extends TestCase
         $this->entityManager->flush();
 
         $row = $this->entityManager->getConnection()->fetchAssociative(
-            'SELECT created_by_id, createdBy_version FROM rtmap_task WHERE id = ?',
+            'SELECT created_by_id, created_by_version FROM rtmap_task WHERE id = ?',
             [$task->getId()],
         );
 
         self::assertIsArray($row);
         self::assertSame($partner->getId(), (int) $row['created_by_id'], 'Doctrine-named FK column');
-        self::assertSame($partner->getVersion(), (int) $row['createdBy_version'], 'live-side pin is populated even for listener-mapped relations');
+        self::assertSame($partner->getVersion(), (int) $row['created_by_version'], 'live-side pin derived from the joinColumn name');
     }
 }
