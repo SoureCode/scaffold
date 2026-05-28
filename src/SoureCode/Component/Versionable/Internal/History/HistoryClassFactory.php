@@ -16,6 +16,7 @@ final class HistoryClassFactory
     public function __construct(
         private readonly HistoryClassGenerator $generator,
         private readonly string $cacheDir,
+        private readonly PhpStormMetaWriter $metaWriter = new PhpStormMetaWriter(),
     ) {
     }
 
@@ -25,11 +26,6 @@ final class HistoryClassFactory
     public function ensureGenerated(string $originalClass): string
     {
         $historyClass = HistoryClassNamer::historyClassFor($originalClass);
-
-        if (class_exists($historyClass, false)) {
-            return $historyClass;
-        }
-
         $file = $this->cacheDir . \DIRECTORY_SEPARATOR . HistoryClassNamer::fileNameFor($originalClass);
 
         if (!is_dir($this->cacheDir)) {
@@ -38,14 +34,24 @@ final class HistoryClassFactory
             }
         }
 
+        // File and class membership are independent — see EntityProxyFactory.
+        $wrote = false;
+
         if (!is_file($file)) {
             file_put_contents($file, $this->generator->generate($originalClass));
+            $wrote = true;
         }
 
-        require_once $file;
+        if (!class_exists($historyClass, false)) {
+            require_once $file;
+        }
 
         if (!class_exists($historyClass, false)) {
             throw new \RuntimeException(\sprintf('Generated *History class %s did not load from %s.', $historyClass, $file));
+        }
+
+        if ($wrote) {
+            $this->metaWriter->write($this->cacheDir);
         }
 
         return $historyClass;

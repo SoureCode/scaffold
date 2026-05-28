@@ -17,6 +17,7 @@ final class EntityProxyFactory
     public function __construct(
         private readonly EntityProxyGenerator $generator,
         private readonly string $cacheDir,
+        private readonly PhpStormMetaWriter $metaWriter = new PhpStormMetaWriter(),
     ) {
     }
 
@@ -31,11 +32,6 @@ final class EntityProxyFactory
 
         $originalClass = $classMetadata->getName();
         $proxyClass = EntityProxyNamer::proxyClassFor($originalClass);
-
-        if (class_exists($proxyClass, false)) {
-            return $proxyClass;
-        }
-
         $file = $this->cacheDir . \DIRECTORY_SEPARATOR . EntityProxyNamer::fileNameFor($originalClass);
 
         if (!is_dir($this->cacheDir)) {
@@ -44,14 +40,29 @@ final class EntityProxyFactory
             }
         }
 
+        // File and class membership are independent: the class may already
+        // be loaded in the current process (warmer + runtime in the same
+        // PHPUnit run, or two requests served by the same worker) while
+        // the file on disk is missing (cache cleared, fresh deploy). Both
+        // checks must be independent so warmup always ends with both the
+        // file written and the class loaded.
+        $wrote = false;
+
         if (!is_file($file)) {
             file_put_contents($file, $this->generator->generate($classMetadata));
+            $wrote = true;
         }
 
-        require_once $file;
+        if (!class_exists($proxyClass, false)) {
+            require_once $file;
+        }
 
         if (!class_exists($proxyClass, false)) {
             throw new \RuntimeException(\sprintf('Generated entity-proxy class %s did not load from %s.', $proxyClass, $file));
+        }
+
+        if ($wrote) {
+            $this->metaWriter->write($this->cacheDir);
         }
 
         return $proxyClass;

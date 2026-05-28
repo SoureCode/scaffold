@@ -121,6 +121,10 @@ $em->find(Author::class, $post->getAuthorHistory()->getId());
 
 The whole entity is versioned, so fields managed by other behaviors are captured automatically — no extra marking. When the entity also uses [`Lifecycle`](../Lifecycle), its `updatedBy` / `deletedAt` / `deletedBy` fields appear in every snapshot, and the soft-delete transition (`null → timestamp`) and `restore()` each produce one.
 
+## Cache warmup
+
+Both classes families (`*History` and `*VersionableProxy`) are generated lazily — first request that touches an entity writes the file. Symfony hosts get a `kernel.cache_warmer`-tagged service that pre-generates them for every versioned class during `bin/console cache:warmup`, so cold first requests in prod never pay the generation cost. The warmer is optional and idempotent; skipping it is safe.
+
 ## Limits
 
 - The `#[Version]` counter is bumped through Doctrine's persister in the same flush. Concurrent writers can compute the same next version; the `(entity_id, version)` unique index rejects the loser. There is no automatic retry — wrap the flush in a retry loop, or add Doctrine optimistic locking (`#[ORM\Version]`) on a *separate* field if the workload needs it.

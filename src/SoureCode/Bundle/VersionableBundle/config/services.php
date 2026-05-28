@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use SoureCode\Bundle\VersionableBundle\CacheWarmer\VersionableCacheWarmer;
+use SoureCode\Bundle\VersionableBundle\Command\VersionableGenerateCommand;
 use SoureCode\Bundle\VersionableBundle\Security\Voter\VersionableVoter;
 use SoureCode\Component\Versionable\EventListener\VersionableClassMetadataListener;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
@@ -14,6 +16,7 @@ use SoureCode\Component\Versionable\Internal\History\EntityProxyGenerator;
 use SoureCode\Component\Versionable\Internal\History\HistoryClassFactory;
 use SoureCode\Component\Versionable\Internal\History\HistoryClassGenerator;
 use SoureCode\Component\Versionable\Internal\History\HistoryHydrator;
+use SoureCode\Component\Versionable\Internal\History\PhpStormMetaWriter;
 use SoureCode\Component\Versionable\Internal\PinMaintainer;
 use SoureCode\Component\Versionable\Internal\RelationBumpState;
 use SoureCode\Component\Versionable\Internal\SnapshotTargetResolver;
@@ -76,10 +79,13 @@ return static function (ContainerConfigurator $container): void {
             service(EntityManagerInterface::class),
         ]);
 
+    $services->set(PhpStormMetaWriter::class);
+
     $services->set(HistoryClassFactory::class)
         ->args([
             service(HistoryClassGenerator::class),
             '%kernel.cache_dir%/versionable',
+            service(PhpStormMetaWriter::class),
         ]);
 
     $services->set(HistoryHydrator::class)
@@ -96,6 +102,7 @@ return static function (ContainerConfigurator $container): void {
         ->args([
             service(EntityProxyGenerator::class),
             '%kernel.cache_dir%/versionable',
+            service(PhpStormMetaWriter::class),
         ]);
 
     $services->set(VersionableClassMetadataListener::class)
@@ -125,4 +132,26 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set(VersionableVoter::class)
         ->tag('security.voter');
+
+    $services->set(VersionableCacheWarmer::class)
+        ->args([
+            service(EntityManagerInterface::class),
+            service(VersionableMetadataFactory::class),
+            service(HistoryClassFactory::class),
+            service(EntityProxyFactory::class),
+            service(PhpStormMetaWriter::class),
+            '%kernel.cache_dir%/versionable',
+        ])
+        ->tag('kernel.cache_warmer');
+
+    $services->set(VersionableGenerateCommand::class)
+        ->args([
+            service(EntityManagerInterface::class),
+            service(VersionableMetadataFactory::class),
+            service(HistoryClassFactory::class),
+            service(EntityProxyFactory::class),
+            service(PhpStormMetaWriter::class),
+            '%kernel.cache_dir%/versionable',
+        ])
+        ->tag('console.command');
 };
