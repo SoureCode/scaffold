@@ -36,9 +36,15 @@ final class VersionIncrementer
 
         $classMetadata->setFieldValue($entity, $versionField, $next);
 
-        // Inserts pick up the new value through the INSERT SQL — no extra
-        // UPDATE to schedule, no original-state surgery to do.
         if ($unitOfWork->isScheduledForInsert($entity)) {
+            // The insert changeset was captured in computeScheduleInsertsChangeSets
+            // BEFORE onFlush fired, so the INSERT SQL still carries the
+            // pre-bump value (0). Recompute so the INSERT writes the bumped
+            // version on the live row — otherwise the live row stays at 0,
+            // the next flush re-reads 0, bumps to 1, and collides with the
+            // v=1 snapshot we already wrote for the insert.
+            $unitOfWork->recomputeSingleEntityChangeSet($classMetadata, $entity);
+
             return;
         }
 
