@@ -77,7 +77,7 @@ final class VersionMatrixTest extends TestCase
         $subject->setTitle('renamed');
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion());
+        self::assertSame(2, $subject->getVersion());
     }
 
     public function testEnumChangeBumpsVersion(): void
@@ -87,7 +87,7 @@ final class VersionMatrixTest extends TestCase
         $subject->setStatus(ProbeStatus::Published);
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion());
+        self::assertSame(2, $subject->getVersion());
     }
 
     public function testEmbeddedChangeBumpsVersion(): void
@@ -97,7 +97,7 @@ final class VersionMatrixTest extends TestCase
         $subject->setGeo(new Geo(9.0, 9.0));
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion());
+        self::assertSame(2, $subject->getVersion());
     }
 
     public function testManyToOneChangeBumpsBothSides(): void
@@ -111,8 +111,8 @@ final class VersionMatrixTest extends TestCase
         $subject->setOwner($owner);
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion(), 'owning n:1 side');
-        self::assertSame(1, $owner->getVersion(), 'inverse 1:n side');
+        self::assertSame(2, $subject->getVersion(), 'owning n:1 side');
+        self::assertSame(2, $owner->getVersion(), 'inverse 1:n side');
     }
 
     public function testOneToOneChangeBumpsBothSides(): void
@@ -126,8 +126,8 @@ final class VersionMatrixTest extends TestCase
         $subject->setBadge($badge);
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion(), 'owning 1:1 side');
-        self::assertSame(1, $badge->getVersion(), 'inverse 1:1 side');
+        self::assertSame(2, $subject->getVersion(), 'owning 1:1 side');
+        self::assertSame(2, $badge->getVersion(), 'inverse 1:1 side');
     }
 
     public function testManyToManyChangeBumpsBothSides(): void
@@ -141,8 +141,8 @@ final class VersionMatrixTest extends TestCase
         $subject->addTag($tag);
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion(), 'owning n:m endpoint');
-        self::assertSame(1, $tag->getVersion(), 'inverse n:m endpoint (element)');
+        self::assertSame(2, $subject->getVersion(), 'owning n:m endpoint');
+        self::assertSame(2, $tag->getVersion(), 'inverse n:m endpoint (element)');
     }
 
     public function testMixedChangeBumpsExactlyOnce(): void
@@ -157,14 +157,19 @@ final class VersionMatrixTest extends TestCase
         $subject->addTag($tag);
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion(), 'scalar + collection in one flush is one bump');
+        self::assertSame(2, $subject->getVersion(), 'scalar + collection in one flush is one bump');
     }
 
-    public function testInsertDoesNotBump(): void
+    public function testInsertProducesV1Snapshot(): void
     {
         $subject = $this->persistedSubject();
 
-        self::assertSame(0, $subject->getVersion());
+        self::assertSame(1, $subject->getVersion(), 'insert seeds version 1 with a snapshot');
+        $count = (int) $this->entityManager->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM version_probe_subject_version WHERE entity_id = ?',
+            [$subject->getId()],
+        );
+        self::assertSame(1, $count, 'one snapshot row written at insert');
     }
 
     public function testEmptyReflushDoesNotBump(): void
@@ -173,11 +178,11 @@ final class VersionMatrixTest extends TestCase
 
         $subject->setTitle('renamed');
         $this->entityManager->flush();
-        self::assertSame(1, $subject->getVersion());
+        self::assertSame(2, $subject->getVersion());
 
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion(), 'a flush with no change must not bump (stability)');
+        self::assertSame(2, $subject->getVersion(), 'a flush with no change must not bump (stability)');
     }
 
     public function testInverseBumpIsStableAndIsolated(): void
@@ -189,17 +194,17 @@ final class VersionMatrixTest extends TestCase
 
         $subject->setOwner($owner);
         $this->entityManager->flush();
-        self::assertSame(1, $subject->getVersion());
-        self::assertSame(1, $owner->getVersion());
+        self::assertSame(2, $subject->getVersion());
+        self::assertSame(2, $owner->getVersion());
 
         $this->entityManager->flush();
-        self::assertSame(1, $owner->getVersion(), 'owner stable on a no-op flush');
+        self::assertSame(2, $owner->getVersion(), 'owner stable on a no-op flush');
 
         $subject->setTitle('renamed');
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion());
-        self::assertSame(1, $owner->getVersion(), 'owner is not bumped by an unrelated change on subject (isolation)');
+        self::assertSame(3, $subject->getVersion());
+        self::assertSame(2, $owner->getVersion(), 'owner is not bumped by an unrelated change on subject (isolation)');
     }
 
     public function testAllRelationsInOneFlushBumpEachExactlyOnce(): void
@@ -219,10 +224,10 @@ final class VersionMatrixTest extends TestCase
         $subject->addTag($tag);
         $this->entityManager->flush();
 
-        self::assertSame(1, $subject->getVersion(), 'subject bumps once for all of its changes');
-        self::assertSame(1, $owner->getVersion());
-        self::assertSame(1, $badge->getVersion());
-        self::assertSame(1, $tag->getVersion());
+        self::assertSame(2, $subject->getVersion(), 'subject bumps once for all of its changes');
+        self::assertSame(2, $owner->getVersion());
+        self::assertSame(2, $badge->getVersion());
+        self::assertSame(2, $tag->getVersion());
     }
 
     public function testManyToOneRetargetBumpsOldAndNewOwner(): void
@@ -236,14 +241,14 @@ final class VersionMatrixTest extends TestCase
 
         $subject->setOwner($first);
         $this->entityManager->flush();
-        self::assertSame(1, $first->getVersion());
+        self::assertSame(2, $first->getVersion());
 
         $subject->setOwner($second);
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion());
-        self::assertSame(2, $first->getVersion(), 'old owner bumps — it lost the subject');
-        self::assertSame(1, $second->getVersion(), 'new owner bumps — it gained the subject');
+        self::assertSame(3, $subject->getVersion());
+        self::assertSame(3, $first->getVersion(), 'old owner bumps — it lost the subject');
+        self::assertSame(2, $second->getVersion(), 'new owner bumps — it gained the subject');
     }
 
     public function testManyToOneSetNullBumpsOldOwner(): void
@@ -255,13 +260,13 @@ final class VersionMatrixTest extends TestCase
 
         $subject->setOwner($owner);
         $this->entityManager->flush();
-        self::assertSame(1, $owner->getVersion());
+        self::assertSame(2, $owner->getVersion());
 
         $subject->setOwner(null);
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion());
-        self::assertSame(2, $owner->getVersion(), 'detached owner bumps');
+        self::assertSame(3, $subject->getVersion());
+        self::assertSame(3, $owner->getVersion(), 'detached owner bumps');
     }
 
     public function testManyToManyRemoveBumpsElement(): void
@@ -273,13 +278,13 @@ final class VersionMatrixTest extends TestCase
 
         $subject->addTag($tag);
         $this->entityManager->flush();
-        self::assertSame(1, $tag->getVersion());
+        self::assertSame(2, $tag->getVersion());
 
         $subject->removeTag($tag);
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion());
-        self::assertSame(2, $tag->getVersion(), 'removed element bumps');
+        self::assertSame(3, $subject->getVersion());
+        self::assertSame(3, $tag->getVersion(), 'removed element bumps');
     }
 
     public function testOneToOneRetargetBumpsOldAndNewBadge(): void // #8
@@ -293,14 +298,14 @@ final class VersionMatrixTest extends TestCase
 
         $subject->setBadge($first);
         $this->entityManager->flush();
-        self::assertSame(1, $first->getVersion());
+        self::assertSame(2, $first->getVersion());
 
         $subject->setBadge($second);
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion());
-        self::assertSame(2, $first->getVersion(), 'old badge bumps — it lost the subject');
-        self::assertSame(1, $second->getVersion(), 'new badge bumps — it gained the subject');
+        self::assertSame(3, $subject->getVersion());
+        self::assertSame(3, $first->getVersion(), 'old badge bumps — it lost the subject');
+        self::assertSame(2, $second->getVersion(), 'new badge bumps — it gained the subject');
     }
 
     public function testOneToOneSetNullBumpsOldBadge(): void // #9
@@ -312,13 +317,13 @@ final class VersionMatrixTest extends TestCase
 
         $subject->setBadge($badge);
         $this->entityManager->flush();
-        self::assertSame(1, $badge->getVersion());
+        self::assertSame(2, $badge->getVersion());
 
         $subject->setBadge(null);
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion());
-        self::assertSame(2, $badge->getVersion(), 'detached badge bumps');
+        self::assertSame(3, $subject->getVersion());
+        self::assertSame(3, $badge->getVersion(), 'detached badge bumps');
     }
 
     public function testManyToManyClearBumpsEachRemovedElement(): void // #12
@@ -333,17 +338,17 @@ final class VersionMatrixTest extends TestCase
         $subject->addTag($tagOne);
         $subject->addTag($tagTwo);
         $this->entityManager->flush();
-        self::assertSame(1, $subject->getVersion());
-        self::assertSame(1, $tagOne->getVersion());
-        self::assertSame(1, $tagTwo->getVersion());
+        self::assertSame(2, $subject->getVersion());
+        self::assertSame(2, $tagOne->getVersion());
+        self::assertSame(2, $tagTwo->getVersion());
 
         $subject->removeTag($tagOne);
         $subject->removeTag($tagTwo);
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion());
-        self::assertSame(2, $tagOne->getVersion(), 'each cleared element bumps');
-        self::assertSame(2, $tagTwo->getVersion());
+        self::assertSame(3, $subject->getVersion());
+        self::assertSame(3, $tagOne->getVersion(), 'each cleared element bumps');
+        self::assertSame(3, $tagTwo->getVersion());
     }
 
     public function testScalarAndEnumBumpSubjectOnce(): void // #13 a+b
@@ -582,8 +587,8 @@ final class VersionMatrixTest extends TestCase
 
         $subject->addTag($tagOne);
         $this->entityManager->flush();
-        self::assertSame(1, $subject->getVersion());
-        self::assertSame(1, $tagOne->getVersion());
+        self::assertSame(2, $subject->getVersion());
+        self::assertSame(2, $tagOne->getVersion());
 
         $this->assertFlushBumps(
             function () use ($subject, $tagOne, $tagTwo): void {
@@ -602,7 +607,7 @@ final class VersionMatrixTest extends TestCase
         $this->entityManager->flush();
 
         $row = $this->entityManager->getConnection()->fetchAssociative(
-            'SELECT status FROM version_probe_subject_version WHERE entity_id = ?',
+            'SELECT status FROM version_probe_subject_version WHERE entity_id = ? ORDER BY version DESC LIMIT 1',
             [$subject->getId()],
         );
 
@@ -611,20 +616,20 @@ final class VersionMatrixTest extends TestCase
         self::assertSame(ProbeStatus::Published, ProbeStatus::from($row['status']), 'reads back to the enum case');
     }
 
-    public function testInsertWithExistingElementSparesOwnerButBumpsElement(): void // #33 — aggregate insert
+    public function testAggregateInsertBumpsOwnerAndExistingElement(): void // #33b — aggregate insert
     {
         $tag = new Tag('news');
         $this->entityManager->persist($tag);
         $this->entityManager->flush();
-        self::assertSame(0, $tag->getVersion());
+        self::assertSame(1, $tag->getVersion(), 'inserted tag seeded at v=1');
 
         $subject = new Subject('hello', new Geo(1.0, 2.0));
         $subject->addTag($tag);
         $this->entityManager->persist($subject);
         $this->entityManager->flush();
 
-        self::assertSame(0, $subject->getVersion(), 'a newly inserted owner is not bumped by its initial collection');
-        self::assertSame(1, $tag->getVersion(), 'an existing element still bumps when a new owner references it');
+        self::assertSame(1, $subject->getVersion(), 'newly inserted owner gets its insert snapshot at v=1');
+        self::assertSame(2, $tag->getVersion(), 'existing element bumps because the new owner references it');
     }
 
     public function testDeletingEntityWritesNoTombstoneAndBumpsAllSurvivors(): void // #42
@@ -634,9 +639,9 @@ final class VersionMatrixTest extends TestCase
         $subject->setBadge($badge);
         $subject->addTag($tag);
         $this->entityManager->flush();
-        self::assertSame(1, $owner->getVersion());
-        self::assertSame(1, $badge->getVersion());
-        self::assertSame(1, $tag->getVersion());
+        self::assertSame(2, $owner->getVersion());
+        self::assertSame(2, $badge->getVersion());
+        self::assertSame(2, $tag->getVersion());
 
         $subjectId = $subject->getId();
         $connection = $this->entityManager->getConnection();
@@ -654,9 +659,9 @@ final class VersionMatrixTest extends TestCase
         );
 
         self::assertSame($snapshotsBefore, $snapshotsAfter, 'a delete is not a snapshot — no tombstone row for the removed entity');
-        self::assertSame(2, $owner->getVersion(), 'owner bumps — it lost the subject (n:1 survivor)');
-        self::assertSame(2, $badge->getVersion(), 'badge bumps — it lost the subject (1:1 survivor)');
-        self::assertSame(2, $tag->getVersion(), 'tag bumps — it lost the subject (n:m survivor)');
+        self::assertSame(3, $owner->getVersion(), 'owner bumps — it lost the subject (n:1 survivor)');
+        self::assertSame(3, $badge->getVersion(), 'badge bumps — it lost the subject (1:1 survivor)');
+        self::assertSame(3, $tag->getVersion(), 'tag bumps — it lost the subject (n:m survivor)');
     }
 
     public function testDeletingInverseSideOfManyToManyBumpsOwningSurvivors(): void // #42b
@@ -667,13 +672,13 @@ final class VersionMatrixTest extends TestCase
         $this->entityManager->flush();
         $subject->addTag($tag);
         $this->entityManager->flush();
-        self::assertSame(1, $subject->getVersion());
-        self::assertSame(1, $tag->getVersion());
+        self::assertSame(2, $subject->getVersion());
+        self::assertSame(2, $tag->getVersion());
 
         $this->entityManager->remove($tag);
         $this->entityManager->flush();
 
-        self::assertSame(2, $subject->getVersion(), 'deleting the inverse-side element bumps the owning-side survivor');
+        self::assertSame(3, $subject->getVersion(), 'deleting the inverse-side element bumps the owning-side survivor');
     }
 
     public function testDeletingBothEndsOfManyToManyDoesNotBumpEither(): void // #42c

@@ -96,6 +96,8 @@ final class InheritanceIntegrationTest extends TestCase
             ->select('*')
             ->from('versionable_inherited_document_version')
             ->where('entity_id = :id')
+            ->orderBy('version', 'DESC')
+            ->setMaxResults(1)
             ->setParameter('id', $memo->getId())
             ->fetchAssociative();
 
@@ -120,6 +122,8 @@ final class InheritanceIntegrationTest extends TestCase
             ->select('*')
             ->from('versionable_inherited_document_version')
             ->where('entity_id = :id')
+            ->orderBy('version', 'DESC')
+            ->setMaxResults(1)
             ->setParameter('id', $announcement->getId())
             ->fetchAssociative();
 
@@ -134,11 +138,11 @@ final class InheritanceIntegrationTest extends TestCase
         $memo = new InheritedMemo('memo');
         $this->entityManager->persist($memo);
         $this->entityManager->flush();
-        self::assertSame(0, $memo->getVersion(), 'insert is not a bump');
+        self::assertSame(1, $memo->getVersion(), 'insert seeds v=1 with a snapshot');
 
         $memo->setAuthorNote('changed');
         $this->entityManager->flush();
 
-        self::assertSame(1, $memo->getVersion(), 'a subclass-only field change bumps the shared version field');
+        self::assertSame(2, $memo->getVersion(), 'a subclass-only field change bumps the shared version field');
     }
 }

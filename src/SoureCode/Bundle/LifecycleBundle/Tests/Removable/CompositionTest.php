@@ -83,8 +83,9 @@ final class CompositionTest extends AbstractBundleTestCase
 
         $versioner = $container->get(VersionerInterface::class);
         $history = $versioner->findHistory(FullyDecoratedArticle::class, $article->id);
-        self::assertCount(1, $history, 'Versionable: one snapshot taken on the update');
-        self::assertSame('second', $history[0]->title, 'snapshot reflects post-update state of the versioned field');
+        self::assertCount(2, $history, 'Versionable: insert (v=1) + update (v=2) snapshots');
+        self::assertSame('first', $history[0]->title, 'v=1 captures the insert state');
+        self::assertSame('second', $history[1]->title, 'v=2 captures the post-update state');
 
         $container->get(RemoverInterface::class)->remove($article);
         self::assertNotNull($article->getDeletedAt(), 'Removable: DeletedAt stamped on soft delete');

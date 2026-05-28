@@ -60,7 +60,17 @@ interface VersionerInterface
         int $version,
         array $onlyFields = [],
         bool $cascade = false,
+        ?bool $bumpRelations = null,
     ): AppliedVersion;
+
+    /**
+     * One-shot override for relationship bump propagation on the next flush.
+     * When set, replaces every entity's class-level
+     * `#[Versioned(bumpRelations: ...)]` default for that flush only. Resets
+     * automatically in `postFlush`, so the next flush starts from the class
+     * defaults again.
+     */
+    public function bumpRelations(bool $value): void;
 
     /**
      * Returns the per-field before/after pairs between two versions of the

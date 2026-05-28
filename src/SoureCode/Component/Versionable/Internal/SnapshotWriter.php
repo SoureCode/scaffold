@@ -182,7 +182,7 @@ final class SnapshotWriter
 
         $targetVersion = null;
         if ($this->metadataFactory->isVersionable($assoc->targetEntity)) {
-            $targetVersion = $this->loadCurrentTargetVersion($assoc->targetEntity, $idDbValue, $connection, $entityManager);
+            $targetVersion = $this->readTargetVersion($related, $assoc->targetEntity, $entityManager);
         }
 
         return [$idDbValue, $targetVersion];
@@ -235,7 +235,7 @@ final class SnapshotWriter
             ];
 
             if ($captureVersion) {
-                $row[VersionTableColumns::JOIN_TARGET_VERSION] = $this->loadCurrentTargetVersion($targetClass, $idDbValue, $connection, $entityManager);
+                $row[VersionTableColumns::JOIN_TARGET_VERSION] = $this->readTargetVersion($element, $targetClass, $entityManager);
             }
 
             $connection->insert($joinTable, $row);
@@ -243,25 +243,23 @@ final class SnapshotWriter
     }
 
     /**
+     * Read the related entity's #[Version] field in memory rather than
+     * querying its snapshot table. Insert-as-snapshot means partners in the
+     * same flush may not have their snapshot row written yet at the moment
+     * this runs; the in-memory value is the canonical, already-bumped truth.
+     *
      * @param class-string $targetClass
      */
-    private function loadCurrentTargetVersion(
-        string $targetClass,
-        mixed $targetIdValue,
-        Connection $connection,
-        EntityManagerInterface $entityManager,
-    ): ?int {
-        $targetVersionTable = $this->metadataFactory->versionTableName(
-            $entityManager->getClassMetadata($targetClass)->getTableName(),
-        );
+    private function readTargetVersion(object $related, string $targetClass, EntityManagerInterface $entityManager): ?int
+    {
+        $versionField = $this->metadataFactory->getMetadataFor($targetClass)->versionField;
 
-        $value = $connection->createQueryBuilder()
-            ->select(\sprintf('MAX(%s)', VersionTableColumns::VERSION))
-            ->from($targetVersionTable)
-            ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
-            ->setParameter('entity_id', $targetIdValue)
-            ->fetchOne();
+        if ($versionField === null) {
+            return null;
+        }
 
-        return $value === null || $value === false ? null : (int) $value;
+        $value = $entityManager->getClassMetadata($targetClass)->getFieldValue($related, $versionField);
+
+        return $value === null ? null : (int) $value;
     }
 }

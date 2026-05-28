@@ -79,7 +79,7 @@ final class VersionableRelationsIntegrationTest extends TestCase
         $this->entityManager->flush();
 
         $rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            'SELECT * FROM versionable_rich_article_version WHERE entity_id = ? ORDER BY version ASC',
+            'SELECT * FROM versionable_rich_article_version WHERE entity_id = ? ORDER BY version DESC LIMIT 1',
             [$article->getId()],
         );
 
@@ -105,12 +105,12 @@ final class VersionableRelationsIntegrationTest extends TestCase
         $this->entityManager->flush();
 
         $rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            'SELECT category_version FROM versionable_rich_article_version WHERE entity_id = ? ORDER BY version ASC',
+            'SELECT category_version FROM versionable_rich_article_version WHERE entity_id = ? ORDER BY version DESC LIMIT 1',
             [$article->getId()],
         );
 
         self::assertCount(1, $rows);
-        self::assertSame(1, (int) $rows[0]['category_version']);
+        self::assertSame(2, (int) $rows[0]['category_version'], 'latest article snapshot pins category at its current (post-update) version');
     }
 
     public function testOneToManyCollectionSnapshotIntoJoinTable(): void
@@ -176,26 +176,26 @@ final class VersionableRelationsIntegrationTest extends TestCase
             'SELECT id, version FROM versionable_rich_article_version WHERE entity_id = ? ORDER BY version ASC',
             [$article->getId()],
         );
-        self::assertCount(2, $versions, 'Two snapshots: add (v1), remove (v2)');
-
-        $v1Rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            'SELECT target_id FROM versionable_rich_article_version_tags WHERE version_id = ? ORDER BY target_id ASC',
-            [$versions[0]['id']],
-        );
-        self::assertSame(
-            [$tagA->getId(), $tagB->getId()],
-            array_map(static fn(array $row): int => (int) $row['target_id'], $v1Rows),
-            'v1 captures both tags',
-        );
+        self::assertCount(3, $versions, 'Three snapshots: insert (v1), add (v2), remove (v3)');
 
         $v2Rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            'SELECT target_id FROM versionable_rich_article_version_tags WHERE version_id = ?',
+            'SELECT target_id FROM versionable_rich_article_version_tags WHERE version_id = ? ORDER BY target_id ASC',
             [$versions[1]['id']],
         );
         self::assertSame(
+            [$tagA->getId(), $tagB->getId()],
+            array_map(static fn (array $row): int => (int) $row['target_id'], $v2Rows),
+            'v2 captures both tags',
+        );
+
+        $v3Rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT target_id FROM versionable_rich_article_version_tags WHERE version_id = ?',
+            [$versions[2]['id']],
+        );
+        self::assertSame(
             [$tagB->getId()],
-            array_map(static fn(array $row): int => (int) $row['target_id'], $v2Rows),
-            'v2 captures only the remaining tag after removeTag(tagA)',
+            array_map(static fn (array $row): int => (int) $row['target_id'], $v3Rows),
+            'v3 captures only the remaining tag after removeTag(tagA)',
         );
     }
 }

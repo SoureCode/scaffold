@@ -70,8 +70,8 @@ final class SelfRefTest extends TestCase
         $child->setParent($root);
         $this->entityManager->flush();
 
-        self::assertSame(1, $child->getVersion(), 'child (owning self-ref) bumps');
-        self::assertSame(1, $root->getVersion(), 'parent bumps — bidirectional self-ref');
+        self::assertSame(2, $child->getVersion(), 'child (owning self-ref) bumps');
+        self::assertSame(2, $root->getVersion(), 'parent bumps — bidirectional self-ref');
     }
 
     public function testUnidirectionalSelfRefBumpsOnlySelf(): void
@@ -85,7 +85,7 @@ final class SelfRefTest extends TestCase
         $child->setParent($root);
         $this->entityManager->flush();
 
-        self::assertSame(1, $child->getVersion(), 'child bumps');
-        self::assertSame(0, $root->getVersion(), 'parent untouched — unidirectional self-ref stays one-sided');
+        self::assertSame(2, $child->getVersion(), 'child bumps');
+        self::assertSame(1, $root->getVersion(), 'parent untouched — unidirectional self-ref stays at its insert v=1');
     }
 }

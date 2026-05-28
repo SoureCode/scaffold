@@ -8,6 +8,7 @@ use Doctrine\ORM\Events;
 use Doctrine\ORM\Tools\ToolEvents;
 use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\ListenerPrioritiesConfigBuilder;
 use SoureCode\Bundle\DoctrineExtensionsBundle\DependencyInjection\PrioritizedListenerRegistrar;
+use SoureCode\Component\Versionable\EventListener\VersionableClassMetadataListener;
 use SoureCode\Component\Versionable\EventListener\VersionableListener;
 use SoureCode\Component\Versionable\EventListener\VersionableSchemaListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -25,12 +26,13 @@ final class VersionableBundle extends AbstractBundle
                     'on_flush' => -100,
                     'post_flush' => -100,
                     'post_generate_schema' => 0,
+                    'load_class_metadata' => 0,
                 ]))
             ->end();
     }
 
     /**
-     * @param array{listener_priorities: array{on_flush: int, post_flush: int, post_generate_schema: int}} $config
+     * @param array{listener_priorities: array{on_flush: int, post_flush: int, post_generate_schema: int, load_class_metadata: int}} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
@@ -43,6 +45,10 @@ final class VersionableBundle extends AbstractBundle
 
         PrioritizedListenerRegistrar::register($builder, VersionableSchemaListener::class, [
             ToolEvents::postGenerateSchema => $config['listener_priorities']['post_generate_schema'],
+        ]);
+
+        PrioritizedListenerRegistrar::register($builder, VersionableClassMetadataListener::class, [
+            Events::loadClassMetadata => $config['listener_priorities']['load_class_metadata'],
         ]);
     }
 }

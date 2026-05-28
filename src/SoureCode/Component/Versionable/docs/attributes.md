@@ -23,9 +23,18 @@ class Article
 }
 ```
 
-Marks the entity as versioned. Every mapped field and association — except the identifier — is tracked; any change to one of them appends a snapshot row.
+Marks the entity as versioned. Every mapped field and association — except the identifier and the `#[Version]` counter — is tracked; persist seeds version `1` with a snapshot, and any subsequent change to a versioned field appends another snapshot row.
 
-No arguments.
+### Arguments
+
+```php
+#[Versioned(bumpRelations: false)]
+class AuditEntry { … }
+```
+
+| Argument | Default | Meaning |
+|----------|---------|---------|
+| `bumpRelations` | `true` | Class default for "does a relationship change ripple to the other end's snapshot?" — `true` bumps both sides on a relation change, `false` only bumps the side that owns the change. Can be overridden per flush with `Versioner::bumpRelations(bool)`. |
 
 Target: `\Attribute::TARGET_CLASS`. Mark the root of an inheritance hierarchy once; subclasses are versioned too.
 
@@ -35,19 +44,23 @@ Target: `\Attribute::TARGET_CLASS`. Mark the root of an inheritance hierarchy on
 |------|----------------|
 | Scalar / enum field | column on the snapshot row |
 | Embeddable | flattened columns on the snapshot row |
-| `ManyToOne` (owning) | `<field>_id` column on the snapshot row |
-| `OneToOne` (either side) | `<field>_id` column on the snapshot row |
+| `ManyToOne` (owning) | `<field>_id` column on the snapshot row, plus a sibling `<field>_version` on the **live** owning table when the target is versioned (the live-side pin) |
+| `OneToOne` (either side) | `<field>_id` column on the snapshot row, plus the live-side pin when versioned |
 | `OneToMany` (inverse collection) | one row per element in `<entity>_version_<field>` |
 | `ManyToMany` | one row per element in `<entity>_version_<field>` |
 
+### `<field>_version` on the live table (pin)
+
+For every owning single-valued versioned relation where the target is itself versioned, Versionable adds an unmapped `<field>_version` column to the LIVE table next to the FK. On every flush of the owner, `PinMaintainer` writes the related entity's current version into that column. The pin then stays frozen until the owner is flushed again — so the entity's view of its partner does not change underneath it when the partner bumps independently.
+
 ### `target_version`
 
-If the target of a versioned relation is itself `Versionable`, the snapshot also records the target's current version number:
+The same value (the related entity's current version at write time) is recorded on the **snapshot** rows too:
 
 - Single-cardinality → `<field>_version` column on the snapshot row.
 - Collection → `target_version` column on the join table.
 
-`null` means the target had never produced a version row at snapshot time. Version numbers start at `1`; no `0` sentinel.
+`null` only appears when the target is non-versioned. Pinning a versioned target at version `0` is forbidden by design; since insert seeds `1`, this case only arises if you try to assign an unpersisted versioned entity as a relation.
 
 ## `#[Version]`
 
@@ -66,7 +79,7 @@ public function getVersion(): int
 }
 ```
 
-The framework increments it once per snapshot, so `getVersion()` is the snapshot count: a fresh entity is `0`, its first snapshot is `1`. It is excluded from the snapshot's own data — it is metadata, not a tracked field.
+The framework increments it once per snapshot, so `getVersion()` is the snapshot count: a fresh in-memory entity is `0`, after persist it is `1`, after every subsequent edit it advances by one. It is excluded from the snapshot's own data — it is metadata, not a tracked field.
 
 No arguments. Target: `\Attribute::TARGET_PROPERTY`.
 

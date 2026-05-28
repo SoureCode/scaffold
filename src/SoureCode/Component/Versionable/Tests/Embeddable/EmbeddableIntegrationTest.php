@@ -83,7 +83,7 @@ final class EmbeddableIntegrationTest extends TestCase
         $location->setAddress(new PostalAddress('Other 3', 'Paris'));
         $this->entityManager->flush();
 
-        $applied = $this->versioner->applyVersion($location, 1);
+        $applied = $this->versioner->applyVersion($location, 2);
 
         self::assertContains('address', $applied->changedFields, 'embeddable property reported as changed');
         self::assertSame('Side 2', $location->getAddress()->getStreet());

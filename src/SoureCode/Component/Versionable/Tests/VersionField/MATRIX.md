@@ -104,8 +104,8 @@ So a row's full test is: *make the change → assert the bump → assert isolati
 
 | # | Case | Expected | Status |
 |---|------|----------|--------|
-| 33 | Insert | seeds `version` (0), no bump, no snapshot | ✅ |
-| 33b | Aggregate insert (owner + populated collection) | owner stays `0`; an existing element it references still bumps | ✅ |
+| 33 | Insert | seeds `version` `1` with one snapshot row | ✅ |
+| 33b | Aggregate insert (owner + populated collection) | owner snapshots at v=1; existing element it references still bumps | ✅ |
 | 34 | No-op flush — **stability** | nothing changed → no bump, no snapshot, anywhere | ✅ |
 | 35 | Re-flush after a bump — **stability** | version write leaves the entity clean → no extra bump | ✅ |
 | 35b | **Isolation** | an unrelated change on one entity never bumps the other | ✅ |
@@ -131,7 +131,11 @@ Both sides now bump for every cardinality. `SnapshotTargetResolver` resolves inv
 
 A host's optional Doctrine `#[ORM\Version]` lock is supported (`Tests/Lock/LockTest`): the factory excludes it from snapshot content, our counter bumps independently, and Doctrine still raises `OptimisticLockException` on a concurrent change (`#36`, `#36b`).
 
-Insert is uniformly not a snapshot, even for aggregates: a new owner persisted with a populated collection in one flush stays at `0`, while an existing element it references still bumps (`#33b`, `Tests/Orphan`, `SnapshotTargetResolver::collectCollectionTargets`). No-lock concurrency rests on the `(entity_id, version)` unique index (`#37`, `Tests/Concurrency`). Structural shapes — self-reference, STI, `orphanRemoval` — bump on the same rules as flat entities (`#38`–`#40`, `Tests/SelfRef`, `Tests/Inheritance`, `Tests/Orphan`).
+Insert is uniformly a snapshot now: a freshly persisted versioned entity seeds at version `1` with one snapshot row, even for an aggregate where the owner is persisted with a populated collection in one flush. An existing element referenced by a new owner still bumps because gaining the relation is its own change (`#33`, `#33b`, `Tests/Orphan`). No-lock concurrency rests on the `(entity_id, version)` unique index (`#37`, `Tests/Concurrency`). Structural shapes — self-reference, STI, `orphanRemoval` — bump on the same rules as flat entities (`#38`–`#40`, `Tests/SelfRef`, `Tests/Inheritance`, `Tests/Orphan`).
+
+Per-relation pinning is enforced at the live row: every owning single-valued versioned relation grows a `<field>_version` column on the live owning table; `PinMaintainer` writes it on every flush so the live row carries `(target_id, target_version)` instead of only the FK. The pin is frozen between flushes — independent bumps on the related entity do not change it (`Tests/Pin`).
+
+The runtime-generated `*History` DTOs hold scalars/embeddeds plus transitive relation getters that resolve to partner `*History` instances at the recorded `<field>_version`/`target_version` (`Tests/History`). Entities loaded through the EntityManager are runtime-generated proxy subclasses with `get<Field>History()` methods per owning versioned relation, delegating to `HistoryRegistry` (`Tests/EntityProxy`).
 
 Deleting an entity is not a snapshot: the removed row gets no tombstone, and every bidirectional survivor bumps because its relationship set changed — n:1 / 1:1 via `inverseOwnersFromCurrent` (in-memory single-valued associations), n:m via `manyToManyElementsOfDeleted` (owning-side in-memory collection, inverse-side DQL lookup against the owning side, since the inverse collection is not auto-synced). Both ends deleted → neither bumps (`#42`/`#42b`/`#42c`, `Tests/VersionField`).
 

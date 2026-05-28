@@ -85,13 +85,13 @@ final class ApplyVersionRelationsIntegrationTest extends TestCase
         $article->setTitle('v3');
         $this->entityManager->flush();
 
-        $this->versioner->applyVersion($article, 1);
+        $this->versioner->applyVersion($article, 2);
 
         $reflection = new \ReflectionProperty(RichArticle::class, 'category');
         $restored = $reflection->getValue($article);
 
         self::assertInstanceOf(Category::class, $restored);
-        self::assertSame($news->getId(), $restored->getId(), 'Version 1 captured category=news; applyVersion reattaches via EntityManager::find');
+        self::assertSame($news->getId(), $restored->getId(), 'Version 2 captured category=news; applyVersion reattaches via EntityManager::find');
     }
 
     public function testApplyVersionRestoresManyToManyCollection(): void
@@ -117,17 +117,17 @@ final class ApplyVersionRelationsIntegrationTest extends TestCase
         $article->setTitle('v3');
         $this->entityManager->flush();
 
-        $this->versioner->applyVersion($article, 1);
+        $this->versioner->applyVersion($article, 2);
 
         $reflection = new \ReflectionProperty(RichArticle::class, 'tags');
         /** @var \Doctrine\Common\Collections\Collection<int, Tag> $tags */
         $tags = $reflection->getValue($article);
 
         self::assertCount(2, $tags);
-        $ids = array_map(static fn(Tag $tag): int => $tag->getId(), $tags->toArray());
+        $ids = array_map(static fn (Tag $tag): int => $tag->getId(), $tags->toArray());
         sort($ids);
         $expected = [$tagA->getId(), $tagB->getId()];
         sort($expected);
-        self::assertSame($expected, $ids, 'Version 1 captured the {A, B} tag set');
+        self::assertSame($expected, $ids, 'Version 2 captured the {A, B} tag set');
     }
 }

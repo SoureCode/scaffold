@@ -73,10 +73,13 @@ final class VersionerIntegrationTest extends TestCase
 
         $history = $this->versioner->findHistory(Article::class, $article->getId());
 
-        self::assertCount(2, $history);
-        self::assertInstanceOf(Article::class, $history[0]);
-        self::assertSame('two', $history[0]->getTitle());
-        self::assertSame('three', $history[1]->getTitle());
+        $historyClass = Versioner::historyClassFor(Article::class);
+
+        self::assertCount(3, $history);
+        self::assertInstanceOf($historyClass, $history[0]);
+        self::assertSame('one', $history[0]->getTitle());
+        self::assertSame('two', $history[1]->getTitle());
+        self::assertSame('three', $history[2]->getTitle());
     }
 
     public function testFindByVersionReturnsHydratedEntity(): void
@@ -90,13 +93,19 @@ final class VersionerIntegrationTest extends TestCase
         $article->setTitle('gamma');
         $this->entityManager->flush();
 
+        $historyClass = Versioner::historyClassFor(Article::class);
+
         $first = $this->versioner->findByVersion(Article::class, $article->getId(), 1);
-        self::assertInstanceOf(Article::class, $first);
-        self::assertSame('beta', $first->getTitle());
+        self::assertInstanceOf($historyClass, $first);
+        self::assertSame('alpha', $first->getTitle());
 
         $second = $this->versioner->findByVersion(Article::class, $article->getId(), 2);
-        self::assertInstanceOf(Article::class, $second);
-        self::assertSame('gamma', $second->getTitle());
+        self::assertInstanceOf($historyClass, $second);
+        self::assertSame('beta', $second->getTitle());
+
+        $third = $this->versioner->findByVersion(Article::class, $article->getId(), 3);
+        self::assertInstanceOf($historyClass, $third);
+        self::assertSame('gamma', $third->getTitle());
 
         self::assertNull($this->versioner->findByVersion(Article::class, $article->getId(), 99));
     }
@@ -113,7 +122,7 @@ final class VersionerIntegrationTest extends TestCase
         $this->entityManager->flush();
 
         $latest = $this->versioner->findLatestVersion(Article::class, $article->getId());
-        self::assertInstanceOf(Article::class, $latest);
+        self::assertInstanceOf(Versioner::historyClassFor(Article::class), $latest);
         self::assertSame('gamma', $latest->getTitle());
     }
 
@@ -131,7 +140,7 @@ final class VersionerIntegrationTest extends TestCase
         $article->setBody('body-gamma');
         $this->entityManager->flush();
 
-        $this->versioner->applyVersion($article, 1);
+        $this->versioner->applyVersion($article, 2);
 
         self::assertSame('beta', $article->getTitle());
         self::assertSame('body-beta', $article->getBody());
@@ -163,7 +172,7 @@ final class VersionerIntegrationTest extends TestCase
         $article->setBody('body-gamma');
         $this->entityManager->flush();
 
-        $diff = $this->versioner->diff(Article::class, $article->getId(), 1, 2);
+        $diff = $this->versioner->diff(Article::class, $article->getId(), 2, 3);
 
         self::assertNotNull($diff);
         self::assertTrue($diff->hasChanges());

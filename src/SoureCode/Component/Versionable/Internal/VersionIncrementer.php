@@ -32,9 +32,16 @@ final class VersionIncrementer
 
         $current = (int) $classMetadata->getFieldValue($entity, $versionField);
         $next = $current + 1;
-
         $unitOfWork = $entityManager->getUnitOfWork();
+
         $classMetadata->setFieldValue($entity, $versionField, $next);
+
+        // Inserts pick up the new value through the INSERT SQL — no extra
+        // UPDATE to schedule, no original-state surgery to do.
+        if ($unitOfWork->isScheduledForInsert($entity)) {
+            return;
+        }
+
         $unitOfWork->scheduleExtraUpdate($entity, [$versionField => [$current, $next]]);
         $unitOfWork->setOriginalEntityProperty(spl_object_id($entity), $versionField, $next);
     }

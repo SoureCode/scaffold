@@ -4,39 +4,36 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Versionable;
 
-use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Mapping\ClassMetadata;
 use SoureCode\Component\Versionable\EventListener\VersionTableColumns;
-use SoureCode\Component\Versionable\Internal\VersionRowApplier;
+use SoureCode\Component\Versionable\Internal\History\HistoryHydrator;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
 /**
  * Read-side of the version store. Queries the version table for historical
- * snapshots and hydrates them into detached entity instances, and compares
- * two versions to produce a per-field diff.
+ * snapshots and hydrates them into runtime-generated `*History` instances
+ * (read-only DTOs). Also compares two versions to produce a per-field diff.
  *
- * Hydrated entities are detached copies — they are constructed via
- * `ClassMetadata::newInstance()` and must NOT be persisted via the
- * EntityManager.
+ * The returned objects are NOT the host entity class — they are distinct
+ * `*History` classes generated under the `SoureCode\Versionable\Generated\`
+ * namespace and intentionally have no setters. They expose the entity's own
+ * scalar/embedded fields plus `getId()` and `getVersion()`.
  */
 final class VersionReader
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly VersionableMetadataFactory $metadataFactory,
-        private readonly VersionRowApplier $rowApplier,
+        private readonly HistoryHydrator $historyHydrator,
     ) {
     }
 
     /**
-     * @template T of object
+     * @param class-string $className
      *
-     * @param class-string<T> $className
-     *
-     * @return list<T>
+     * @return list<object>
      */
     public function findHistory(string $className, int|string $entityId): array
     {
@@ -49,18 +46,14 @@ final class VersionReader
         $entities = [];
 
         foreach ($rows as $row) {
-            $entities[] = $this->hydrate($className, $row);
+            $entities[] = $this->historyHydrator->hydrate($className, $row);
         }
 
         return $entities;
     }
 
     /**
-     * @template T of object
-     *
-     * @param class-string<T> $className
-     *
-     * @return T|null
+     * @param class-string $className
      */
     public function findByVersion(string $className, int|string $entityId, int $version): ?object
     {
@@ -75,15 +68,11 @@ final class VersionReader
             return null;
         }
 
-        return $this->hydrate($className, $row);
+        return $this->historyHydrator->hydrate($className, $row);
     }
 
     /**
-     * @template T of object
-     *
-     * @param class-string<T> $className
-     *
-     * @return T|null
+     * @param class-string $className
      */
     public function findLatestVersion(string $className, int|string $entityId): ?object
     {
@@ -98,7 +87,7 @@ final class VersionReader
             return null;
         }
 
-        return $this->hydrate($className, $row);
+        return $this->historyHydrator->hydrate($className, $row);
     }
 
     /**
@@ -123,35 +112,88 @@ final class VersionReader
      */
     public function diff(string $className, int|string $entityId, int $fromVersion, int $toVersion): ?VersionDiff
     {
-        $before = $this->findByVersion($className, $entityId, $fromVersion);
-        $after = $this->findByVersion($className, $entityId, $toVersion);
+        $beforeRow = $this->fetchVersionRow($className, $entityId, $fromVersion);
+        $afterRow = $this->fetchVersionRow($className, $entityId, $toVersion);
 
-        if ($before === null || $after === null) {
+        if ($beforeRow === null || $afterRow === null) {
             return null;
         }
 
         $classMetadata = $this->entityManager->getClassMetadata($className);
         $metadata = $this->metadataFactory->getMetadataFor($className);
+        $platform = $this->entityManager->getConnection()->getDatabasePlatform();
         $changes = [];
 
         foreach ($metadata->bindings as $binding) {
             $fieldName = $binding->property->getName();
-            $beforeValue = $binding->property->getValue($before);
-            $afterValue = $binding->property->getValue($after);
 
-            if ($classMetadata->isCollectionValuedAssociation($fieldName)) {
-                $beforeIds = $this->collectionIds($beforeValue, $classMetadata, $fieldName);
-                $afterIds = $this->collectionIds($afterValue, $classMetadata, $fieldName);
+            if (isset($classMetadata->embeddedClasses[$fieldName])) {
+                foreach ($classMetadata->getFieldNames() as $flat) {
+                    if (!str_starts_with($flat, $fieldName . '.')) {
+                        continue;
+                    }
 
-                if ($beforeIds !== $afterIds) {
-                    $changes[$fieldName] = ['before' => $beforeIds, 'after' => $afterIds];
+                    $mapping = $classMetadata->getFieldMapping($flat);
+                    $type = Type::getType($mapping->type);
+                    $columnName = $classMetadata->getColumnName($flat);
+                    $before = $type->convertToPHPValue($beforeRow[$columnName] ?? null, $platform);
+                    $after = $type->convertToPHPValue($afterRow[$columnName] ?? null, $platform);
+
+                    if ($before !== $after) {
+                        $changes[$flat] = ['before' => $before, 'after' => $after];
+                    }
                 }
 
                 continue;
             }
 
-            if ($beforeValue !== $afterValue) {
-                $changes[$fieldName] = ['before' => $beforeValue, 'after' => $afterValue];
+            if (isset($classMetadata->fieldMappings[$fieldName])) {
+                $mapping = $classMetadata->getFieldMapping($fieldName);
+                $type = Type::getType($mapping->type);
+                $columnName = $classMetadata->getColumnName($fieldName);
+                $before = $type->convertToPHPValue($beforeRow[$columnName] ?? null, $platform);
+                $after = $type->convertToPHPValue($afterRow[$columnName] ?? null, $platform);
+
+                $enumType = $mapping->enumType ?? null;
+
+                if ($enumType !== null && $before !== null) {
+                    $before = $enumType::from($before);
+                }
+
+                if ($enumType !== null && $after !== null) {
+                    $after = $enumType::from($after);
+                }
+
+                if ($before !== $after) {
+                    $changes[$fieldName] = ['before' => $before, 'after' => $after];
+                }
+
+                continue;
+            }
+
+            if (!$classMetadata->hasAssociation($fieldName)) {
+                continue;
+            }
+
+            if ($classMetadata->isSingleValuedAssociation($fieldName)) {
+                $idColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX;
+                $before = $beforeRow[$idColumn] ?? null;
+                $after = $afterRow[$idColumn] ?? null;
+
+                if ($before !== $after) {
+                    $changes[$fieldName] = ['before' => $before, 'after' => $after];
+                }
+
+                continue;
+            }
+
+            if ($classMetadata->isCollectionValuedAssociation($fieldName)) {
+                $beforeIds = $this->collectionIdsForVersion($className, $entityId, $fromVersion, $fieldName);
+                $afterIds = $this->collectionIdsForVersion($className, $entityId, $toVersion, $fieldName);
+
+                if ($beforeIds !== $afterIds) {
+                    $changes[$fieldName] = ['before' => $beforeIds, 'after' => $afterIds];
+                }
             }
         }
 
@@ -159,65 +201,32 @@ final class VersionReader
     }
 
     /**
-     * @internal Bypasses the entity constructor via Doctrine's newInstance(); the returned
-     *           object is a partial snapshot copy and MUST NOT be persisted via the EntityManager.
-     *
-     * @template T of object
-     *
-     * @param class-string<T> $className
-     * @param array<string, mixed> $row
-     *
-     * @return T
-     */
-    private function hydrate(string $className, array $row): object
-    {
-        $classMetadata = $this->entityManager->getClassMetadata($className);
-
-        /** @var T $entity */
-        $entity = $classMetadata->newInstance();
-
-        $idField = $classMetadata->getSingleIdentifierFieldName();
-        $idType = Type::getType($classMetadata->getFieldMapping($idField)->type);
-        $classMetadata->getPropertyAccessor($idField)->setValue(
-            $entity,
-            $idType->convertToPHPValue($row[VersionTableColumns::ENTITY_ID], $this->entityManager->getConnection()->getDatabasePlatform()),
-        );
-
-        $this->rowApplier->applyRow($className, $entity, $row);
-
-        return $entity;
-    }
-
-    /**
-     * @param ClassMetadata<object> $classMetadata
+     * @param class-string $className
      *
      * @return list<int|string|null>
      */
-    private function collectionIds(mixed $collection, ClassMetadata $classMetadata, string $fieldName): array
+    private function collectionIdsForVersion(string $className, int|string $entityId, int $version, string $fieldName): array
     {
-        if (!$collection instanceof Collection) {
-            return [];
-        }
+        $versionTable = $this->metadataFactory->versionTableName(
+            $this->entityManager->getClassMetadata($className)->getTableName(),
+        );
+        $joinTable = $versionTable . '_' . $fieldName;
 
-        $assoc = $classMetadata->getAssociationMapping($fieldName);
-        $targetMetadata = $this->entityManager->getClassMetadata($assoc->targetEntity);
-        $idField = $targetMetadata->getSingleIdentifierFieldName();
-        $idProperty = $targetMetadata->getPropertyAccessor($idField);
+        $ids = $this->entityManager->getConnection()->createQueryBuilder()
+            ->select('jt.' . VersionTableColumns::JOIN_TARGET_ID)
+            ->from($joinTable, 'jt')
+            ->innerJoin('jt', $versionTable, 'av', 'av.' . VersionTableColumns::ID . ' = jt.' . VersionTableColumns::JOIN_VERSION_ID)
+            ->where('av.' . VersionTableColumns::ENTITY_ID . ' = :entity_id')
+            ->andWhere('av.' . VersionTableColumns::VERSION . ' = :version')
+            ->orderBy('jt.' . VersionTableColumns::JOIN_POSITION, 'ASC')
+            ->setParameter('entity_id', $entityId)
+            ->setParameter('version', $version)
+            ->fetchFirstColumn();
 
-        $ids = [];
+        $normalised = array_map(static fn ($value) => is_scalar($value) || $value === null ? $value : (string) $value, $ids);
+        sort($normalised);
 
-        foreach ($collection as $element) {
-            if (!is_object($element)) {
-                continue;
-            }
-
-            $value = $idProperty->getValue($element);
-            $ids[] = is_scalar($value) || $value === null ? $value : (string) $value;
-        }
-
-        sort($ids);
-
-        return $ids;
+        return $normalised;
     }
 
     /**

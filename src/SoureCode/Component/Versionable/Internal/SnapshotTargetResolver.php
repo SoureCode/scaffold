@@ -22,7 +22,19 @@ final class SnapshotTargetResolver
 {
     public function __construct(
         private readonly VersionableMetadataFactory $metadataFactory,
+        private readonly RelationBumpState $relationBumpState = new RelationBumpState(),
     ) {
+    }
+
+    private function shouldPropagateFrom(object $entity): bool
+    {
+        $override = $this->relationBumpState->getOverride();
+
+        if ($override !== null) {
+            return $override;
+        }
+
+        return $this->metadataFactory->getMetadataFor($entity::class)->bumpRelations;
     }
 
     /**
@@ -40,6 +52,10 @@ final class SnapshotTargetResolver
                 $targets[$entity] = true;
             }
 
+            if (!$this->shouldPropagateFrom($entity)) {
+                continue;
+            }
+
             foreach ($this->inverseOwnersFromChangeSet($entity, $unitOfWork->getEntityChangeSet($entity), $entityManager) as $owner) {
                 $targets[$owner] = true;
             }
@@ -54,12 +70,24 @@ final class SnapshotTargetResolver
         }
 
         foreach ($unitOfWork->getScheduledEntityInsertions() as $insertion) {
+            if ($this->metadataFactory->isVersionable($insertion::class)) {
+                $targets[$insertion] = true;
+            }
+
+            if (!$this->shouldPropagateFrom($insertion)) {
+                continue;
+            }
+
             foreach ($this->inverseOwnersFromCurrent($insertion, $entityManager) as $owner) {
                 $targets[$owner] = true;
             }
         }
 
         foreach ($unitOfWork->getScheduledEntityDeletions() as $deletion) {
+            if (!$this->shouldPropagateFrom($deletion)) {
+                continue;
+            }
+
             foreach ($this->inverseOwnersFromCurrent($deletion, $entityManager) as $owner) {
                 if ($this->isScheduledForDeletion($owner, $unitOfWork)) {
                     continue;
@@ -101,6 +129,10 @@ final class SnapshotTargetResolver
         // guard wraps only the owner.
         if (!$unitOfWork->isScheduledForInsert($owner)) {
             $targets[$owner] = true;
+        }
+
+        if (!$this->shouldPropagateFrom($owner)) {
+            return;
         }
 
         foreach ($this->changedManyToManyElements($collection, $unitOfWork, $entityManager) as $element) {

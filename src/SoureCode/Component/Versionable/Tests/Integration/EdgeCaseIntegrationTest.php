@@ -124,7 +124,7 @@ final class EdgeCaseIntegrationTest extends TestCase
         $reloaded = $this->entityManager->find(RichArticle::class, $article->getId());
         self::assertNotNull($reloaded);
 
-        $versioner->applyVersion($reloaded, 1);
+        $versioner->applyVersion($reloaded, 2);
 
         $warnings = array_filter(
             $logger->records,

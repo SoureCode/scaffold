@@ -42,8 +42,9 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
 
         $bindings = [];
         $versionField = null;
+        $attribute = $this->getVersionedAttribute($class);
 
-        if ($this->isVersionable($class)) {
+        if ($attribute !== null) {
             $this->walkHierarchy(
                 $class,
                 function (\ReflectionProperty $property) use (&$bindings, &$versionField): void {
@@ -62,7 +63,7 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
             );
         }
 
-        $metadata = new VersionableMetadata($bindings, $versionField);
+        $metadata = new VersionableMetadata($bindings, $versionField, $attribute?->bumpRelations ?? true);
         $this->cache[$class] = $metadata;
 
         return $metadata;
@@ -73,17 +74,27 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
      */
     public function isVersionable(string $class): bool
     {
+        return $this->getVersionedAttribute($class) !== null;
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function getVersionedAttribute(string $class): ?Versioned
+    {
         for (
             $reflection = new \ReflectionClass($class);
             $reflection !== false;
             $reflection = $reflection->getParentClass()
         ) {
-            if ($reflection->getAttributes(Versioned::class) !== []) {
-                return true;
+            $attributes = $reflection->getAttributes(Versioned::class);
+
+            if ($attributes !== []) {
+                return $attributes[0]->newInstance();
             }
         }
 
-        return false;
+        return null;
     }
 
     /**

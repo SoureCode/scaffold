@@ -68,13 +68,18 @@ final class OrphanRemovalTest extends TestCase
         $this->entityManager->persist($catalog);
         $this->entityManager->flush();
 
-        self::assertSame(0, $catalog->getVersion(), 'insert is not a bump');
+        self::assertSame(1, $catalog->getVersion(), 'insert seeds version 1 with a snapshot');
         $itemId = $item->getId();
+        $itemSnapshotsBeforeRemove = (int) $this->entityManager->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM orphan_item_version WHERE entity_id = ?',
+            [$itemId],
+        );
+        self::assertSame(1, $itemSnapshotsBeforeRemove, 'item also has its insert snapshot');
 
         $catalog->removeItem($item);
         $this->entityManager->flush();
 
-        self::assertSame(1, $catalog->getVersion(), 'owner bumps when a child is orphan-removed');
+        self::assertSame(2, $catalog->getVersion(), 'owner bumps when a child is orphan-removed');
 
         $surviving = $this->entityManager->getConnection()->fetchOne(
             'SELECT COUNT(*) FROM orphan_item WHERE id = ?',
@@ -82,10 +87,10 @@ final class OrphanRemovalTest extends TestCase
         );
         self::assertSame(0, (int) $surviving, 'orphan child is deleted');
 
-        $snapshots = $this->entityManager->getConnection()->fetchOne(
+        $snapshotsAfter = (int) $this->entityManager->getConnection()->fetchOne(
             'SELECT COUNT(*) FROM orphan_item_version WHERE entity_id = ?',
             [$itemId],
         );
-        self::assertSame(0, (int) $snapshots, 'deleted child gets no snapshot');
+        self::assertSame($itemSnapshotsBeforeRemove, $snapshotsAfter, 'delete adds no tombstone — pre-existing snapshots remain');
     }
 }

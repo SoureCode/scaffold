@@ -55,7 +55,9 @@ final class FunctionalTest extends AbstractBundleTestCase
             'SELECT * FROM versionable_bundle_page_version WHERE entity_id = ?',
             [$page->id],
         );
-        self::assertCount(0, $rows, 'No snapshot on insert');
+        self::assertCount(1, $rows, 'Insert produces a v=1 snapshot');
+        self::assertSame(1, (int) $rows[0]['version']);
+        self::assertSame('hello', $rows[0]['title']);
 
         $page->title = 'updated';
         $entityManager->flush();
@@ -64,8 +66,9 @@ final class FunctionalTest extends AbstractBundleTestCase
             'SELECT * FROM versionable_bundle_page_version WHERE entity_id = ? ORDER BY version ASC',
             [$page->id],
         );
-        self::assertCount(1, $rows, 'Update produces exactly one snapshot row');
-        self::assertSame('updated', $rows[0]['title']);
+        self::assertCount(2, $rows, 'Update appends a second snapshot row');
+        self::assertSame(2, (int) $rows[1]['version']);
+        self::assertSame('updated', $rows[1]['title']);
     }
 
     public function testVersionerInterfaceAliasResolvesToConcreteVersioner(): void

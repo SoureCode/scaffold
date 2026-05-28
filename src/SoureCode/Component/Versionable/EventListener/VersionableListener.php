@@ -8,6 +8,8 @@ use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use SoureCode\Component\Versionable\Internal\PinMaintainer;
+use SoureCode\Component\Versionable\Internal\RelationBumpState;
 use SoureCode\Component\Versionable\Internal\SnapshotTargetResolver;
 use SoureCode\Component\Versionable\Internal\SnapshotWriter;
 use SoureCode\Component\Versionable\Internal\VersionIncrementer;
@@ -23,6 +25,8 @@ final class VersionableListener
         private readonly SnapshotTargetResolver $targetResolver,
         private readonly VersionIncrementer $versionIncrementer,
         private readonly SnapshotWriter $snapshotWriter,
+        private readonly PinMaintainer $pinMaintainer,
+        private readonly RelationBumpState $relationBumpState = new RelationBumpState(),
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -33,12 +37,16 @@ final class VersionableListener
 
         $targets = $this->pendingSnapshots ?? new \SplObjectStorage();
 
-        foreach ($this->targetResolver->resolve($entityManager) as $entity) {
-            $targets[$entity] = true;
-        }
+        try {
+            foreach ($this->targetResolver->resolve($entityManager) as $entity) {
+                $targets[$entity] = true;
+            }
 
-        foreach ($targets as $entity) {
-            $this->versionIncrementer->increment($entity, $entityManager);
+            foreach ($targets as $entity) {
+                $this->versionIncrementer->increment($entity, $entityManager);
+            }
+        } finally {
+            $this->relationBumpState->reset();
         }
 
         $this->pendingSnapshots = $targets;
@@ -65,6 +73,7 @@ final class VersionableListener
         try {
             foreach ($pending as $entity) {
                 $this->snapshotWriter->write($entity, $entityManager);
+                $this->pinMaintainer->maintain($entity, $entityManager);
             }
 
             $connection->commit();

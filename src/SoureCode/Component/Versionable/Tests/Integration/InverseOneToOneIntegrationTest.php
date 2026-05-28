@@ -69,7 +69,7 @@ final class InverseOneToOneIntegrationTest extends TestCase
         $this->entityManager->flush();
 
         $rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            'SELECT * FROM versionable_account_version WHERE entity_id = ? ORDER BY version ASC',
+            'SELECT * FROM versionable_account_version WHERE entity_id = ? ORDER BY version DESC LIMIT 1',
             [$account->getId()],
         );
 

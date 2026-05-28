@@ -188,10 +188,17 @@ final class CascadeRestoreIntegrationTest extends TestCase
         self::assertSame('a-three', $nameProperty->getValue($tagA), 'precondition: tags are at the latest mutated state before cascade');
         self::assertSame('b-three', $nameProperty->getValue($tagB));
 
-        $expectedTagAName = $this->fetchTagNameAtVersion($tagA->getId(), 1);
-        $expectedTagBName = $this->fetchTagNameAtVersion($tagB->getId(), 1);
+        // article v=2 is the snapshot taken when tags were added; it captures
+        // each tag at the version the tag held in memory at that moment.
+        $capturedTagAVersion = $this->fetchCapturedTagVersion($article->getId(), articleVersion: 2, tagId: $tagA->getId());
+        $capturedTagBVersion = $this->fetchCapturedTagVersion($article->getId(), articleVersion: 2, tagId: $tagB->getId());
+        self::assertNotNull($capturedTagAVersion);
+        self::assertNotNull($capturedTagBVersion);
 
-        $this->versioner->applyVersion($article, 1, cascade: true);
+        $expectedTagAName = $this->fetchTagNameAtVersion($tagA->getId(), $capturedTagAVersion);
+        $expectedTagBName = $this->fetchTagNameAtVersion($tagB->getId(), $capturedTagBVersion);
+
+        $this->versioner->applyVersion($article, 2, cascade: true);
 
         self::assertSame($expectedTagAName, $nameProperty->getValue($tagA), 'cascade reverts every M2M element to the captured version');
         self::assertSame($expectedTagBName, $nameProperty->getValue($tagB));
@@ -221,13 +228,13 @@ final class CascadeRestoreIntegrationTest extends TestCase
         $node->setLabel('label-d');
         $this->entityManager->flush();
 
-        // Restoring v2 walks the parent association; the parent is the
+        // Restoring v3 walks the parent association; the parent is the
         // same instance, so the recursion hits the visited guard.
-        $applied = $this->versioner->applyVersion($node, 2, cascade: true);
+        $applied = $this->versioner->applyVersion($node, 3, cascade: true);
 
         $labelProperty = new \ReflectionProperty(Node::class, 'label');
         self::assertSame('label-c', $labelProperty->getValue($node), 'cascade revert applied to the self-referencing node');
-        self::assertSame(2, $applied->version);
+        self::assertSame(3, $applied->version);
     }
 
     /**
@@ -335,6 +342,27 @@ final class CascadeRestoreIntegrationTest extends TestCase
     private function fetchTagNameAtVersion(int $tagId, int $version): ?string
     {
         return $this->fetchNameAtVersion('versionable_tag_version', $tagId, $version);
+    }
+
+    private function fetchCapturedTagVersion(int $articleId, int $articleVersion, int $tagId): ?int
+    {
+        $value = $this->entityManager->getConnection()->createQueryBuilder()
+            ->select('jt.' . VersionTableColumns::JOIN_TARGET_VERSION)
+            ->from('versionable_rich_article_version_tags', 'jt')
+            ->innerJoin('jt', 'versionable_rich_article_version', 'av', 'av.id = jt.' . VersionTableColumns::JOIN_VERSION_ID)
+            ->where('av.' . VersionTableColumns::ENTITY_ID . ' = :entity_id')
+            ->andWhere('av.' . VersionTableColumns::VERSION . ' = :version')
+            ->andWhere('jt.' . VersionTableColumns::JOIN_TARGET_ID . ' = :target_id')
+            ->setParameter('entity_id', $articleId)
+            ->setParameter('version', $articleVersion)
+            ->setParameter('target_id', $tagId)
+            ->fetchOne();
+
+        if ($value === false || $value === null) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     private function fetchNameAtVersion(string $versionTable, int $entityId, int $version): ?string

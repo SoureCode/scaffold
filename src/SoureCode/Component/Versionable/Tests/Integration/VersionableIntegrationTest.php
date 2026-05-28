@@ -56,13 +56,16 @@ final class VersionableIntegrationTest extends TestCase
         $schemaTool->createSchema([$this->entityManager->getClassMetadata(Article::class)]);
     }
 
-    public function testInsertCreatesNoVersionRow(): void
+    public function testInsertCreatesV1Snapshot(): void
     {
         $article = new Article('hello');
         $this->entityManager->persist($article);
         $this->entityManager->flush();
 
-        self::assertSame(0, $this->countVersionRows($article->getId()));
+        $rows = $this->fetchVersionRows($article->getId());
+        self::assertCount(1, $rows);
+        self::assertSame(1, (int) $rows[0]['version']);
+        self::assertSame('hello', $rows[0]['title']);
     }
 
     public function testUpdateOnVersionedFieldWritesSnapshot(): void
@@ -77,10 +80,12 @@ final class VersionableIntegrationTest extends TestCase
         $this->entityManager->flush();
 
         $rows = $this->fetchVersionRows($article->getId());
-        self::assertCount(1, $rows);
+        self::assertCount(2, $rows);
         self::assertSame(1, (int) $rows[0]['version']);
-        self::assertSame('renamed', $rows[0]['title']);
-        self::assertSame('first body', $rows[0]['body']);
+        self::assertSame('hello', $rows[0]['title']);
+        self::assertSame(2, (int) $rows[1]['version']);
+        self::assertSame('renamed', $rows[1]['title']);
+        self::assertSame('first body', $rows[1]['body']);
     }
 
     public function testUpdateOnAnyMappedFieldWritesSnapshot(): void
@@ -92,7 +97,7 @@ final class VersionableIntegrationTest extends TestCase
         $article->setInternalNote('audit only');
         $this->entityManager->flush();
 
-        self::assertSame(1, $this->countVersionRows($article->getId()));
+        self::assertSame(2, $this->countVersionRows($article->getId()));
     }
 
     public function testVersionCounterIncrementsPerEntity(): void
@@ -111,8 +116,8 @@ final class VersionableIntegrationTest extends TestCase
         $this->entityManager->flush();
 
         $rows = $this->fetchVersionRows($article->getId());
-        self::assertSame([1, 2, 3], array_map(static fn(array $row): int => (int) $row['version'], $rows));
-        self::assertSame(['two', 'three', 'four'], array_map(static fn(array $row): string => $row['title'], $rows));
+        self::assertSame([1, 2, 3, 4], array_map(static fn (array $row): int => (int) $row['version'], $rows));
+        self::assertSame(['one', 'two', 'three', 'four'], array_map(static fn (array $row): string => $row['title'], $rows));
     }
 
     private function countVersionRows(int $entityId): int

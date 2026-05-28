@@ -40,6 +40,61 @@ final class VersionableSchemaListener
             $rootMetadata = $this->resolveRootMetadata($classMetadata, $metadataFactoryDoctrine);
 
             $this->createVersionTable($schema, $rootMetadata, $classMetadata, $metadata->bindings, $metadataFactoryDoctrine);
+            $this->addLivePinColumns($schema, $classMetadata, $metadata->bindings);
+        }
+    }
+
+    /**
+     * Adds a `<field>_version` column to the LIVE owning table for every
+     * single-valued versioned association whose target is itself versioned.
+     * The column is unmapped on Doctrine's side — PinMaintainer writes it
+     * through DBAL in postFlush so the live row carries the pinned target
+     * version next to its FK.
+     *
+     * @param ClassMetadata<object> $sourceMetadata
+     * @param list<VersionedBinding> $bindings
+     */
+    private function addLivePinColumns(
+        Schema $schema,
+        ClassMetadata $sourceMetadata,
+        array $bindings,
+    ): void {
+        $tableName = $sourceMetadata->getTableName();
+
+        if (!$schema->hasTable($tableName)) {
+            return;
+        }
+
+        $liveTable = $schema->getTable($tableName);
+
+        foreach ($bindings as $binding) {
+            $fieldName = $binding->property->getName();
+
+            if (!$sourceMetadata->hasAssociation($fieldName)) {
+                continue;
+            }
+
+            if (!$sourceMetadata->isSingleValuedAssociation($fieldName)) {
+                continue;
+            }
+
+            $assoc = $sourceMetadata->getAssociationMapping($fieldName);
+
+            if (!$assoc->isOwningSide()) {
+                continue;
+            }
+
+            if (!$this->metadataFactory->isVersionable($assoc->targetEntity)) {
+                continue;
+            }
+
+            $pinColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_VERSION_SUFFIX;
+
+            if ($liveTable->hasColumn($pinColumn)) {
+                continue;
+            }
+
+            $liveTable->addColumn($pinColumn, Types::INTEGER, ['notnull' => false]);
         }
     }
 

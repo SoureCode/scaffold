@@ -63,10 +63,10 @@ final class LockTest extends TestCase
         $entity->setTitle('renamed');
         $this->entityManager->flush();
 
-        self::assertSame(1, $entity->getVersion(), 'our counter bumps');
+        self::assertSame(2, $entity->getVersion(), 'our counter bumps (v=1 at insert, v=2 after change)');
 
         $row = $this->entityManager->getConnection()->fetchAssociative(
-            'SELECT * FROM lock_probe_entity_version WHERE entity_id = ?',
+            'SELECT * FROM lock_probe_entity_version WHERE entity_id = ? ORDER BY version DESC LIMIT 1',
             [$entity->getId()],
         );
 

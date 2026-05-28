@@ -7,6 +7,11 @@ namespace SoureCode\Component\Versionable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use SoureCode\Component\Versionable\Internal\History\HistoryClassFactory;
+use SoureCode\Component\Versionable\Internal\History\HistoryClassGenerator;
+use SoureCode\Component\Versionable\Internal\History\HistoryClassNamer;
+use SoureCode\Component\Versionable\Internal\History\HistoryHydrator;
+use SoureCode\Component\Versionable\Internal\RelationBumpState;
 use SoureCode\Component\Versionable\Internal\VersionRowApplier;
 use SoureCode\Component\Versionable\Metadata\VersionableMetadataFactory;
 
@@ -26,12 +31,37 @@ final class Versioner implements VersionerInterface
         EntityManagerInterface $entityManager,
         VersionableMetadataFactory $metadataFactory,
         LoggerInterface $logger = new NullLogger(),
+        private readonly RelationBumpState $relationBumpState = new RelationBumpState(),
+        ?HistoryHydrator $historyHydrator = null,
     ) {
         $rowApplier = new VersionRowApplier($entityManager, $metadataFactory, $logger);
+        $historyHydrator ??= new HistoryHydrator(
+            $entityManager,
+            $metadataFactory,
+            new HistoryClassFactory(
+                new HistoryClassGenerator($metadataFactory, $entityManager),
+                sys_get_temp_dir() . \DIRECTORY_SEPARATOR . 'sourecode-versionable',
+            ),
+        );
 
-        $this->reader = new VersionReader($entityManager, $metadataFactory, $rowApplier);
+        $this->reader = new VersionReader($entityManager, $metadataFactory, $historyHydrator);
         $this->applier = new VersionApplier($entityManager, $metadataFactory, $rowApplier, $this->reader);
         $this->pruner = new VersionPruner($entityManager, $metadataFactory);
+    }
+
+    /**
+     * Resolve the runtime-generated `*History` FQCN for a versioned entity.
+     * Useful in tests and for type assertions on values returned by
+     * {@see findByVersion()}, {@see findHistory()}, {@see findLatestVersion()}.
+     */
+    public static function historyClassFor(string $originalClass): string
+    {
+        return HistoryClassNamer::historyClassFor($originalClass);
+    }
+
+    public function bumpRelations(bool $value): void
+    {
+        $this->relationBumpState->setOverride($value);
     }
 
     public function findHistory(string $className, int|string $entityId): array
@@ -54,7 +84,12 @@ final class Versioner implements VersionerInterface
         int $version,
         array $onlyFields = [],
         bool $cascade = false,
+        ?bool $bumpRelations = null,
     ): AppliedVersion {
+        if ($bumpRelations !== null) {
+            $this->relationBumpState->setOverride($bumpRelations);
+        }
+
         return $this->applier->applyVersion($entity, $version, $onlyFields, $cascade);
     }
 
