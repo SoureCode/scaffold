@@ -61,18 +61,30 @@ final class VersionRowApplier
                         continue;
                     }
 
+                    $mapping = $classMetadata->getFieldMapping($flat);
                     $columnName = $classMetadata->getColumnName($flat);
-                    $type = Type::getType($classMetadata->getFieldMapping($flat)->type);
-                    $classMetadata->setFieldValue($entity, $flat, $type->convertToPHPValue($row[$columnName] ?? null, $platform));
+                    $value = Type::getType($mapping->type)->convertToPHPValue($row[$columnName] ?? null, $platform);
+
+                    if (($mapping->enumType ?? null) !== null && $value !== null) {
+                        $value = $mapping->enumType::from($value);
+                    }
+
+                    $classMetadata->setFieldValue($entity, $flat, $value);
                 }
 
                 continue;
             }
 
             if (isset($classMetadata->fieldMappings[$name])) {
-                $type = Type::getType($classMetadata->getFieldMapping($name)->type);
+                $mapping = $classMetadata->getFieldMapping($name);
                 $columnName = $classMetadata->getColumnName($name);
-                $binding->property->setValue($entity, $type->convertToPHPValue($row[$columnName] ?? null, $platform));
+                $value = Type::getType($mapping->type)->convertToPHPValue($row[$columnName] ?? null, $platform);
+
+                if (($mapping->enumType ?? null) !== null && $value !== null) {
+                    $value = $mapping->enumType::from($value);
+                }
+
+                $binding->property->setValue($entity, $value);
 
                 continue;
             }
