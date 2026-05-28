@@ -55,7 +55,7 @@ final class UlidIdentifierTest extends TestCase
 
         $this->entityManager = new EntityManager($connection, $config);
 
-        $factory = new VersionableMetadataFactory();
+        $factory = new VersionableMetadataFactory($this->entityManager);
         $this->entityManager->getEventManager()->addEventListener(
             [Events::onFlush, Events::postFlush],
             VersionableListenerFactory::create($factory, new MockClock('2026-05-28T10:00:00+00:00')),

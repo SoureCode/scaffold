@@ -48,7 +48,7 @@ final class EdgeCaseIntegrationTest extends TestCase
         $this->entityManager = new EntityManager($connection, $config);
         $clock = new MockClock('2026-05-17T10:00:00+00:00');
 
-        $this->metadataFactory = new VersionableMetadataFactory();
+        $this->metadataFactory = new VersionableMetadataFactory($this->entityManager);
         $this->entityManager->getEventManager()->addEventListener(
             [Events::onFlush, Events::postFlush],
             VersionableListenerFactory::create($this->metadataFactory, $clock),

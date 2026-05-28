@@ -4,31 +4,34 @@ declare(strict_types=1);
 
 namespace SoureCode\Component\Versionable\Metadata;
 
-use Doctrine\ORM\Mapping\Column;
-use Doctrine\ORM\Mapping\Embedded;
-use Doctrine\ORM\Mapping\Id;
-use Doctrine\ORM\Mapping\ManyToMany;
-use Doctrine\ORM\Mapping\ManyToOne;
-use Doctrine\ORM\Mapping\OneToMany;
-use Doctrine\ORM\Mapping\OneToOne;
-use Doctrine\ORM\Mapping\Version as OrmVersion;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use SoureCode\Component\DoctrineExtensions\Metadata\AbstractBehaviorMetadataFactory;
 use SoureCode\Component\Versionable\Attribute\Version;
 use SoureCode\Component\Versionable\Attribute\Versioned;
 
+/**
+ * Builds the per-class binding inventory Versionable tracks. The binding
+ * list is drawn from Doctrine's `ClassMetadata` — every scalar/enum
+ * field, embedded value object, and association declared on the entity
+ * by any means (attributes, XML/YAML, `mapField()`/`mapManyToOne()`
+ * called from a `loadClassMetadata` listener like
+ * `AuthorableMappingListener`). The factory only needs reflection to
+ * detect Versionable's own attributes (`#[Versioned]` / `#[Version]`).
+ *
+ * Excluded from bindings:
+ *
+ *   - the identifier(s),
+ *   - Versionable's own `#[Version]` counter field,
+ *   - Doctrine's optimistic-lock `#[ORM\Version]` field (concurrency
+ *     metadata, not tracked data).
+ */
 class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
 {
-    /**
-     * @var list<class-string>
-     */
-    private const array MAPPING_ATTRIBUTES = [
-        Column::class,
-        Embedded::class,
-        ManyToOne::class,
-        OneToOne::class,
-        OneToMany::class,
-        ManyToMany::class,
-    ];
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+    ) {
+    }
 
     /**
      * @param class-string $class
@@ -40,30 +43,20 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
             return $this->cache[$class];
         }
 
-        $bindings = [];
-        $versionField = null;
         $attribute = $this->getVersionedAttribute($class);
 
-        if ($attribute !== null) {
-            $this->walkHierarchy(
-                $class,
-                function (\ReflectionProperty $property) use (&$bindings, &$versionField): void {
-                    if ($property->getAttributes(Version::class) !== []) {
-                        $versionField = $property->getName();
+        if ($attribute === null) {
+            $metadata = new VersionableMetadata([], null, null);
+            $this->cache[$class] = $metadata;
 
-                        return;
-                    }
-
-                    if (!$this->isVersionedProperty($property)) {
-                        return;
-                    }
-
-                    $bindings[] = new VersionedBinding($property);
-                },
-            );
+            return $metadata;
         }
 
-        $metadata = new VersionableMetadata($bindings, $versionField, $attribute?->bumpRelations);
+        $versionField = $this->findVersionField($class);
+        $classMetadata = $this->entityManager->getClassMetadata($class);
+        $bindings = $this->buildBindings($classMetadata, $versionField);
+
+        $metadata = new VersionableMetadata($bindings, $versionField, $attribute->bumpRelations);
         $this->cache[$class] = $metadata;
 
         return $metadata;
@@ -75,6 +68,96 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
     public function isVersionable(string $class): bool
     {
         return $this->getVersionedAttribute($class) !== null;
+    }
+
+    /**
+     * Maps a source table name onto the version table name. Instance
+     * method (not static) so hosts can subclass the factory and override
+     * for multi-tenant schemas, custom suffixes, schema-qualified names,
+     * etc. Override here and inject the subclass — every listener and
+     * Versioner reads through this instance.
+     */
+    public function versionTableName(string $sourceTable): string
+    {
+        return $sourceTable . '_version';
+    }
+
+    /**
+     * @param ClassMetadata<object> $classMetadata
+     *
+     * @return list<VersionedBinding>
+     */
+    private function buildBindings(ClassMetadata $classMetadata, ?string $ownVersionField): array
+    {
+        $bindings = [];
+        $seen = [];
+
+        foreach ($classMetadata->fieldMappings as $field => $mapping) {
+            // Embedded sub-fields land in fieldMappings as dotted entries
+            // ("geo.latitude"); the embedded parent ("geo") is captured
+            // through $embeddedClasses below.
+            if (str_contains($field, '.')) {
+                continue;
+            }
+
+            if ($classMetadata->isIdentifier($field)) {
+                continue;
+            }
+
+            if ($field === $ownVersionField) {
+                continue;
+            }
+
+            if ($classMetadata->isVersioned && $classMetadata->versionField === $field) {
+                continue;
+            }
+
+            $bindings[] = new VersionedBinding($classMetadata->getReflectionProperty($field));
+            $seen[$field] = true;
+        }
+
+        foreach (array_keys($classMetadata->embeddedClasses) as $field) {
+            if (isset($seen[$field])) {
+                continue;
+            }
+
+            $bindings[] = new VersionedBinding($classMetadata->getReflectionProperty($field));
+            $seen[$field] = true;
+        }
+
+        foreach (array_keys($classMetadata->associationMappings) as $field) {
+            if (isset($seen[$field])) {
+                continue;
+            }
+
+            $bindings[] = new VersionedBinding($classMetadata->getReflectionProperty($field));
+            $seen[$field] = true;
+        }
+
+        return $bindings;
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function findVersionField(string $class): ?string
+    {
+        $found = null;
+
+        $this->walkHierarchy(
+            $class,
+            static function (\ReflectionProperty $property) use (&$found): void {
+                if ($found !== null) {
+                    return;
+                }
+
+                if ($property->getAttributes(Version::class) !== []) {
+                    $found = $property->getName();
+                }
+            },
+        );
+
+        return $found;
     }
 
     /**
@@ -95,38 +178,5 @@ class VersionableMetadataFactory extends AbstractBehaviorMetadataFactory
         }
 
         return null;
-    }
-
-    /**
-     * Maps a source table name onto the version table name. Instance
-     * method (not static) so hosts can subclass the factory and override
-     * for multi-tenant schemas, custom suffixes, schema-qualified names,
-     * etc. Override here and inject the subclass — every listener and
-     * Versioner reads through this instance.
-     */
-    public function versionTableName(string $sourceTable): string
-    {
-        return $sourceTable . '_version';
-    }
-
-    private function isVersionedProperty(\ReflectionProperty $property): bool
-    {
-        if ($property->getAttributes(Id::class, \ReflectionAttribute::IS_INSTANCEOF) !== []) {
-            return false;
-        }
-
-        // A Doctrine optimistic-lock column is concurrency metadata, not tracked
-        // data — snapshotting it would re-apply a stale lock value on restore.
-        if ($property->getAttributes(OrmVersion::class, \ReflectionAttribute::IS_INSTANCEOF) !== []) {
-            return false;
-        }
-
-        foreach (self::MAPPING_ATTRIBUTES as $mapping) {
-            if ($property->getAttributes($mapping, \ReflectionAttribute::IS_INSTANCEOF) !== []) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

@@ -46,7 +46,7 @@ final class InheritanceIntegrationTest extends TestCase
         $this->entityManager = new EntityManager($connection, $config);
         $clock = new MockClock('2026-05-21T12:00:00+00:00');
 
-        $factory = new VersionableMetadataFactory();
+        $factory = new VersionableMetadataFactory($this->entityManager);
         $this->entityManager->getEventManager()->addEventListener(
             [Events::onFlush, Events::postFlush],
             VersionableListenerFactory::create($factory, $clock),

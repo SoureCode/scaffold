@@ -33,7 +33,8 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 return static function (ContainerConfigurator $container): void {
     $services = $container->services();
 
-    $services->set(VersionableMetadataFactory::class);
+    $services->set(VersionableMetadataFactory::class)
+        ->args([service(EntityManagerInterface::class)]);
 
     $services->set(RelationBumpState::class);
 

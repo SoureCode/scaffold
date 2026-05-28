@@ -39,7 +39,7 @@ final class SchemaEvolutionIntegrationTest extends TestCase
 
     public function testVersionTableMirrorsCurrentVersionedFieldSet(): void
     {
-        $listener = new VersionableSchemaListener(new VersionableMetadataFactory());
+        $listener = new VersionableSchemaListener(new VersionableMetadataFactory($this->entityManager));
 
         $schema = new Schema();
         $listener->postGenerateSchema(new GenerateSchemaEventArgs($this->entityManager, $schema));
@@ -59,7 +59,7 @@ final class SchemaEvolutionIntegrationTest extends TestCase
         // metadata. Calling it repeatedly must keep reflecting the CURRENT entity shape,
         // not a cached one — otherwise adding a field to a versioned entity wouldn't show up in
         // the next generated migration.
-        $listener = new VersionableSchemaListener(new VersionableMetadataFactory());
+        $listener = new VersionableSchemaListener(new VersionableMetadataFactory($this->entityManager));
 
         $first = new Schema();
         $listener->postGenerateSchema(new GenerateSchemaEventArgs($this->entityManager, $first));

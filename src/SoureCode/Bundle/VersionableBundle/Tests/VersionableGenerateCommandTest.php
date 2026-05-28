@@ -44,7 +44,7 @@ final class VersionableGenerateCommandTest extends TestCase
 
         $entityManager = new EntityManager($connection, $config);
 
-        $factory = new VersionableMetadataFactory();
+        $factory = new VersionableMetadataFactory($entityManager);
         $metaWriter = new PhpStormMetaWriter();
         $historyClassFactory = new HistoryClassFactory(
             new HistoryClassGenerator($factory, $entityManager),

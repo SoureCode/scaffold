@@ -56,7 +56,7 @@ final class EntityProxyTest extends TestCase
 
         $this->entityManager = new EntityManager($connection, $config);
 
-        $factory = new VersionableMetadataFactory();
+        $factory = new VersionableMetadataFactory($this->entityManager);
         $clock = new MockClock('2026-05-28T10:00:00+00:00');
 
         $historyClassFactory = new HistoryClassFactory(

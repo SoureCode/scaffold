@@ -44,7 +44,7 @@ final class CacheWarmerTest extends TestCase
 
         $this->entityManager = new EntityManager($connection, $config);
 
-        $factory = new VersionableMetadataFactory();
+        $factory = new VersionableMetadataFactory($this->entityManager);
         $historyClassFactory = new HistoryClassFactory(
             new HistoryClassGenerator($factory, $this->entityManager),
             $this->cacheDir,

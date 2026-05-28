@@ -133,7 +133,7 @@ final class EndToEndSchemaEvolutionTest extends TestCase
         $entityManager = new EntityManager($connection, $config);
         $entityManager->getEventManager()->addEventListener(
             [ToolEvents::postGenerateSchema],
-            new VersionableSchemaListener(new VersionableMetadataFactory()),
+            new VersionableSchemaListener(new VersionableMetadataFactory($entityManager)),
         );
 
         return $entityManager;

@@ -40,7 +40,7 @@ final class SchemaColumnOptionsIntegrationTest extends TestCase
     public function testSchemaListenerCopiesLengthPrecisionScaleAndEnumOptions(): void
     {
         $schema = new Schema();
-        $listener = new VersionableSchemaListener(new VersionableMetadataFactory());
+        $listener = new VersionableSchemaListener(new VersionableMetadataFactory($this->entityManager));
 
         $listener->postGenerateSchema(new GenerateSchemaEventArgs($this->entityManager, $schema));
 

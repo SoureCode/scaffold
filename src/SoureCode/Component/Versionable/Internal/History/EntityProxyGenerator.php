@@ -43,20 +43,14 @@ final class EntityProxyGenerator
             return false;
         }
 
-        $metadata = $this->metadataFactory->getMetadataFor($originalClass);
-
-        foreach ($metadata->bindings as $binding) {
-            $fieldName = $binding->property->getName();
-
-            if (!$classMetadata->hasAssociation($fieldName)) {
-                continue;
-            }
-
+        // We read ClassMetadata directly here instead of going through the
+        // factory's bindings — the factory's lookup would call back into
+        // EntityManager::getClassMetadata, which is exactly what
+        // loadClassMetadata is in the middle of doing. Recursion city.
+        foreach ($classMetadata->associationMappings as $fieldName => $assoc) {
             if (!$classMetadata->isSingleValuedAssociation($fieldName)) {
                 continue;
             }
-
-            $assoc = $classMetadata->getAssociationMapping($fieldName);
 
             if (!$assoc->isOwningSide()) {
                 continue;
@@ -76,7 +70,6 @@ final class EntityProxyGenerator
     public function generate(ClassMetadata $classMetadata): string
     {
         $originalClass = $classMetadata->getName();
-        $metadata = $this->metadataFactory->getMetadataFor($originalClass);
 
         $proxyFqcn = EntityProxyNamer::proxyClassFor($originalClass);
         $lastSeparator = strrpos($proxyFqcn, '\\');
@@ -86,18 +79,10 @@ final class EntityProxyGenerator
         $registryClass = '\\' . HistoryRegistry::class;
         $methods = [];
 
-        foreach ($metadata->bindings as $binding) {
-            $fieldName = $binding->property->getName();
-
-            if (!$classMetadata->hasAssociation($fieldName)) {
-                continue;
-            }
-
+        foreach ($classMetadata->associationMappings as $fieldName => $assoc) {
             if (!$classMetadata->isSingleValuedAssociation($fieldName)) {
                 continue;
             }
-
-            $assoc = $classMetadata->getAssociationMapping($fieldName);
 
             if (!$assoc->isOwningSide()) {
                 continue;

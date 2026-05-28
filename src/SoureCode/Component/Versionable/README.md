@@ -132,6 +132,14 @@ Both classes families (`*History` and `*VersionableProxy`) are generated lazily 
 - `applyVersion()` requires the version to exist; otherwise `RuntimeException`.
 - `*History` and entity proxy classes are generated at runtime into the cache dir. They are not visible to IDE/static analysis without a stub generator.
 
+## Binding inventory comes from Doctrine
+
+Versionable does **not** scan the entity class for `#[ORM\…]` attributes to decide what to snapshot. The binding inventory — which fields and associations land in the version table — is read from Doctrine's `ClassMetadata` after all `loadClassMetadata` listeners have fired. So a mapping registered programmatically (e.g. `AuthorableMappingListener::loadClassMetadata` calling `$classMetadata->mapManyToOne(['fieldName' => 'createdBy', …])`) is included automatically, even though the property carries only `#[CreatedBy]` and no `#[ORM\ManyToOne]`.
+
+Anything Doctrine accepts — property attributes, XML/YAML mappings, listener-supplied `mapField()` / `mapManyToOne()` / `mapEmbedded()` calls — is fair game and gets snapshotted.
+
+The only reflection-driven step is locating `#[Versioned]` (class-level) and `#[Version]` (property-level) — those are Versionable's own attributes and not part of Doctrine's metadata.
+
 ## Stability
 
 `#[Versioned]`, `#[Version]`, the `VersionerInterface` shape, the runtime-generated `*History` class names, and the snapshot table layout are stable. Internal classes (`VersionableListener`, `SnapshotTargetResolver`, `VersionIncrementer`, `SnapshotWriter`, `PinMaintainer`, `HistoryClassFactory`, `EntityProxyFactory`, `VersionableSchemaListener`, `VersionableClassMetadataListener`) are wired through the bundle — depend on the interface, not the listeners.

@@ -23,7 +23,9 @@ class Article
 }
 ```
 
-Marks the entity as versioned. Every mapped field and association — except the identifier and the `#[Version]` counter — is tracked; persist seeds version `1` with a snapshot, and any subsequent change to a versioned field appends another snapshot row.
+Marks the entity as versioned. Every mapped field and association Doctrine knows about — except the identifier, the `#[Version]` counter, and any Doctrine-`#[ORM\Version]` optimistic-lock field — is tracked; persist seeds version `1` with a snapshot, and any subsequent change to a versioned field appends another snapshot row.
+
+The binding inventory is read from Doctrine's `ClassMetadata` rather than from property-level ORM attributes, so any mapping introduced through a `loadClassMetadata` listener (e.g. lifecycle's `AuthorableMappingListener` that adds the `createdBy` `ManyToOne`) is captured exactly like a directly-attributed field. XML / YAML mappings work the same way.
 
 ### Arguments
 

@@ -43,7 +43,7 @@ final class VersionerIntegrationTest extends TestCase
         $this->entityManager = new EntityManager($connection, $config);
         $this->clock = new MockClock('2026-05-17T10:00:00+00:00');
 
-        $metadataFactory = new VersionableMetadataFactory();
+        $metadataFactory = new VersionableMetadataFactory($this->entityManager);
         $this->entityManager->getEventManager()->addEventListener(
             [Events::onFlush, Events::postFlush],
             VersionableListenerFactory::create($metadataFactory, $this->clock),

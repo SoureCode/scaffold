@@ -44,7 +44,7 @@ final class RelationBumpTest extends TestCase
 
         $this->entityManager = new EntityManager($connection, $config);
 
-        $factory = new VersionableMetadataFactory();
+        $factory = new VersionableMetadataFactory($this->entityManager);
         $clock = new MockClock('2026-05-26T10:00:00+00:00');
         $relationBumpState = new RelationBumpState();
 
@@ -311,7 +311,7 @@ final class RelationBumpTest extends TestCase
 
         $this->entityManager = new \Doctrine\ORM\EntityManager($connection, $config);
 
-        $factory = new VersionableMetadataFactory();
+        $factory = new VersionableMetadataFactory($this->entityManager);
         $clock = new \Symfony\Component\Clock\MockClock('2026-05-28T10:00:00+00:00');
         $state = new RelationBumpState();
         $state->setGlobalDefault($globalDefault);
