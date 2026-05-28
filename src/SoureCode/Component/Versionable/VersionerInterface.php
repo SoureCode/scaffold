@@ -13,7 +13,7 @@ interface VersionerInterface
      *
      * @return list<T>
      */
-    public function findHistory(string $className, int|string $entityId): array;
+    public function findHistory(string $className, mixed $entityId): array;
 
     /**
      * @template T of object
@@ -22,7 +22,7 @@ interface VersionerInterface
      *
      * @return T|null
      */
-    public function findByVersion(string $className, int|string $entityId, int $version): ?object;
+    public function findByVersion(string $className, mixed $entityId, int $version): ?object;
 
     /**
      * @template T of object
@@ -31,7 +31,7 @@ interface VersionerInterface
      *
      * @return T|null
      */
-    public function findLatestVersion(string $className, int|string $entityId): ?object;
+    public function findLatestVersion(string $className, mixed $entityId): ?object;
 
     /**
      * Mutates $entity in place with values from the given historical version.
@@ -78,7 +78,7 @@ interface VersionerInterface
      *
      * @param class-string $className
      */
-    public function diff(string $className, int|string $entityId, int $fromVersion, int $toVersion): ?VersionDiff;
+    public function diff(string $className, mixed $entityId, int $fromVersion, int $toVersion): ?VersionDiff;
 
     /**
      * Hard-deletes every version row of the given entity older than the

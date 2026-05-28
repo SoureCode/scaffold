@@ -64,17 +64,17 @@ final class Versioner implements VersionerInterface
         $this->relationBumpState->setOverride($value);
     }
 
-    public function findHistory(string $className, int|string $entityId): array
+    public function findHistory(string $className, mixed $entityId): array
     {
         return $this->reader->findHistory($className, $entityId);
     }
 
-    public function findByVersion(string $className, int|string $entityId, int $version): ?object
+    public function findByVersion(string $className, mixed $entityId, int $version): ?object
     {
         return $this->reader->findByVersion($className, $entityId, $version);
     }
 
-    public function findLatestVersion(string $className, int|string $entityId): ?object
+    public function findLatestVersion(string $className, mixed $entityId): ?object
     {
         return $this->reader->findLatestVersion($className, $entityId);
     }
@@ -93,7 +93,7 @@ final class Versioner implements VersionerInterface
         return $this->applier->applyVersion($entity, $version, $onlyFields, $cascade);
     }
 
-    public function diff(string $className, int|string $entityId, int $fromVersion, int $toVersion): ?VersionDiff
+    public function diff(string $className, mixed $entityId, int $fromVersion, int $toVersion): ?VersionDiff
     {
         return $this->reader->diff($className, $entityId, $fromVersion, $toVersion);
     }

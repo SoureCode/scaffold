@@ -97,10 +97,13 @@ final class PinMaintainer
             return;
         }
 
+        $idColumn = $classMetadata->getColumnName($idField);
+
         $entityManager->getConnection()->update(
             $classMetadata->getTableName(),
             $pins,
-            [$classMetadata->getColumnName($idField) => $entityId],
+            [$idColumn => $entityId],
+            [$idColumn => $classMetadata->getFieldMapping($idField)->type],
         );
     }
 }

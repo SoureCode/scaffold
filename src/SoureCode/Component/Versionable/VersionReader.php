@@ -35,12 +35,12 @@ final class VersionReader
      *
      * @return list<object>
      */
-    public function findHistory(string $className, int|string $entityId): array
+    public function findHistory(string $className, mixed $entityId): array
     {
         $rows = $this->newQuery($className)
             ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->orderBy(VersionTableColumns::VERSION, 'ASC')
-            ->setParameter('entity_id', $entityId)
+            ->setParameter('entity_id', $entityId, $this->idTypeName($className))
             ->fetchAllAssociative();
 
         $entities = [];
@@ -55,12 +55,12 @@ final class VersionReader
     /**
      * @param class-string $className
      */
-    public function findByVersion(string $className, int|string $entityId, int $version): ?object
+    public function findByVersion(string $className, mixed $entityId, int $version): ?object
     {
         $row = $this->newQuery($className)
             ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->andWhere(VersionTableColumns::VERSION . ' = :version')
-            ->setParameter('entity_id', $entityId)
+            ->setParameter('entity_id', $entityId, $this->idTypeName($className))
             ->setParameter('version', $version)
             ->fetchAssociative();
 
@@ -74,13 +74,13 @@ final class VersionReader
     /**
      * @param class-string $className
      */
-    public function findLatestVersion(string $className, int|string $entityId): ?object
+    public function findLatestVersion(string $className, mixed $entityId): ?object
     {
         $row = $this->newQuery($className)
             ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->orderBy(VersionTableColumns::VERSION, 'DESC')
             ->setMaxResults(1)
-            ->setParameter('entity_id', $entityId)
+            ->setParameter('entity_id', $entityId, $this->idTypeName($className))
             ->fetchAssociative();
 
         if ($row === false) {
@@ -95,12 +95,12 @@ final class VersionReader
      *
      * @return array<string, mixed>|null
      */
-    public function fetchVersionRow(string $className, int|string $entityId, int $version): ?array
+    public function fetchVersionRow(string $className, mixed $entityId, int $version): ?array
     {
         $row = $this->newQuery($className)
             ->where(VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->andWhere(VersionTableColumns::VERSION . ' = :version')
-            ->setParameter('entity_id', $entityId)
+            ->setParameter('entity_id', $entityId, $this->idTypeName($className))
             ->setParameter('version', $version)
             ->fetchAssociative();
 
@@ -110,7 +110,7 @@ final class VersionReader
     /**
      * @param class-string $className
      */
-    public function diff(string $className, int|string $entityId, int $fromVersion, int $toVersion): ?VersionDiff
+    public function diff(string $className, mixed $entityId, int $fromVersion, int $toVersion): ?VersionDiff
     {
         $beforeRow = $this->fetchVersionRow($className, $entityId, $fromVersion);
         $afterRow = $this->fetchVersionRow($className, $entityId, $toVersion);
@@ -205,7 +205,7 @@ final class VersionReader
      *
      * @return list<int|string|null>
      */
-    private function collectionIdsForVersion(string $className, int|string $entityId, int $version, string $fieldName): array
+    private function collectionIdsForVersion(string $className, mixed $entityId, int $version, string $fieldName): array
     {
         $versionTable = $this->metadataFactory->versionTableName(
             $this->entityManager->getClassMetadata($className)->getTableName(),
@@ -219,7 +219,7 @@ final class VersionReader
             ->where('av.' . VersionTableColumns::ENTITY_ID . ' = :entity_id')
             ->andWhere('av.' . VersionTableColumns::VERSION . ' = :version')
             ->orderBy('jt.' . VersionTableColumns::JOIN_POSITION, 'ASC')
-            ->setParameter('entity_id', $entityId)
+            ->setParameter('entity_id', $entityId, $this->idTypeName($className))
             ->setParameter('version', $version)
             ->fetchFirstColumn();
 
@@ -239,5 +239,15 @@ final class VersionReader
             ->from($this->metadataFactory->versionTableName(
                 $this->entityManager->getClassMetadata($className)->getTableName(),
             ));
+    }
+
+    /**
+     * @param class-string $className
+     */
+    private function idTypeName(string $className): string
+    {
+        $classMetadata = $this->entityManager->getClassMetadata($className);
+
+        return $classMetadata->getFieldMapping($classMetadata->getSingleIdentifierFieldName())->type;
     }
 }
