@@ -137,12 +137,12 @@ final class HistoryClassGenerator
 
     private function renderConstructorProperty(string $fieldName, string $type): string
     {
-        return \sprintf('public readonly %s $%s', $type, $fieldName);
+        return \sprintf('private readonly %s $%s', $type, $fieldName);
     }
 
     private function renderConstructorCollectionProperty(string $fieldName, string $partnerHistory): string
     {
-        return \sprintf("/** @var list<%s> */\n        public readonly array \$%s", $partnerHistory, $fieldName);
+        return \sprintf("/** @var list<%s> */\n        private readonly array \$%s", $partnerHistory, $fieldName);
     }
 
     private function renderGetter(string $methodSuffix, string $fieldName, string $type): string
