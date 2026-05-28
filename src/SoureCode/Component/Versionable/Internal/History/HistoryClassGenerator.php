@@ -83,23 +83,22 @@ final class HistoryClassGenerator
 
             $assoc = $classMetadata->getAssociationMapping($fieldName);
             $targetClass = $assoc->targetEntity;
+            $targetIsVersioned = $this->metadataFactory->isVersionable($targetClass);
 
-            if (!$this->metadataFactory->isVersionable($targetClass)) {
-                continue;
-            }
-
-            $partnerHistory = '\\' . HistoryClassNamer::historyClassFor($targetClass);
+            $partnerType = $targetIsVersioned
+                ? '\\' . HistoryClassNamer::historyClassFor($targetClass)
+                : '\\' . ltrim($targetClass, '\\');
 
             if ($classMetadata->isSingleValuedAssociation($fieldName)) {
-                $properties[] = $this->renderConstructorProperty($fieldName, '?' . $partnerHistory);
-                $getters[] = $this->renderGetter(ucfirst($fieldName), $fieldName, '?' . $partnerHistory);
+                $properties[] = $this->renderConstructorProperty($fieldName, '?' . $partnerType);
+                $getters[] = $this->renderGetter(ucfirst($fieldName), $fieldName, '?' . $partnerType);
 
                 continue;
             }
 
             if ($classMetadata->isCollectionValuedAssociation($fieldName)) {
-                $properties[] = $this->renderConstructorCollectionProperty($fieldName, $partnerHistory);
-                $getters[] = $this->renderCollectionGetter(ucfirst($fieldName), $fieldName, $partnerHistory);
+                $properties[] = $this->renderConstructorCollectionProperty($fieldName, $partnerType);
+                $getters[] = $this->renderCollectionGetter(ucfirst($fieldName), $fieldName, $partnerType);
             }
         }
 

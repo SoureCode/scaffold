@@ -96,19 +96,20 @@ final class HistoryHydrator
 
             $assoc = $classMetadata->getAssociationMapping($fieldName);
             $targetClass = $assoc->targetEntity;
-
-            if (!$this->metadataFactory->isVersionable($targetClass)) {
-                continue;
-            }
+            $targetIsVersioned = $this->metadataFactory->isVersionable($targetClass);
 
             if ($classMetadata->isSingleValuedAssociation($fieldName)) {
-                $arguments[$fieldName] = $this->hydrateSingleRelation($fieldName, $targetClass, $row, $visited);
+                $arguments[$fieldName] = $targetIsVersioned
+                    ? $this->hydrateSingleRelation($fieldName, $targetClass, $row, $visited)
+                    : $this->loadLiveSingleRelation($fieldName, $targetClass, $row);
 
                 continue;
             }
 
             if ($classMetadata->isCollectionValuedAssociation($fieldName)) {
-                $arguments[$fieldName] = $this->hydrateCollectionRelation($originalClass, $fieldName, $targetClass, $row, $visited);
+                $arguments[$fieldName] = $targetIsVersioned
+                    ? $this->hydrateCollectionRelation($originalClass, $fieldName, $targetClass, $row, $visited)
+                    : $this->loadLiveCollectionRelation($originalClass, $fieldName, $targetClass, $row);
             }
         }
 
@@ -154,6 +155,70 @@ final class HistoryHydrator
      * @param array<string, mixed> $row
      * @param array<string, object|null> $visited
      */
+    /**
+     * @param class-string $targetClass
+     * @param array<string, mixed> $row
+     */
+    private function loadLiveSingleRelation(string $fieldName, string $targetClass, array $row): ?object
+    {
+        $idColumn = $fieldName . VersionTableColumns::SINGLE_ASSOC_ID_SUFFIX;
+        $targetId = $row[$idColumn] ?? null;
+
+        if ($targetId === null) {
+            return null;
+        }
+
+        return $this->entityManager->find($targetClass, $targetId);
+    }
+
+    /**
+     * @param class-string $originalClass
+     * @param class-string $targetClass
+     * @param array<string, mixed> $row
+     *
+     * @return list<object>
+     */
+    private function loadLiveCollectionRelation(
+        string $originalClass,
+        string $fieldName,
+        string $targetClass,
+        array $row,
+    ): array {
+        if (!isset($row[VersionTableColumns::ID])) {
+            return [];
+        }
+
+        $versionRowId = (int) $row[VersionTableColumns::ID];
+        $sourceTable = $this->entityManager->getClassMetadata($originalClass)->getTableName();
+        $joinTable = $this->metadataFactory->versionTableName($sourceTable) . '_' . $fieldName;
+
+        $targetIds = $this->entityManager->getConnection()->createQueryBuilder()
+            ->select(VersionTableColumns::JOIN_TARGET_ID)
+            ->from($joinTable)
+            ->where(VersionTableColumns::JOIN_VERSION_ID . ' = :version_id')
+            ->orderBy(VersionTableColumns::JOIN_POSITION, 'ASC')
+            ->setParameter('version_id', $versionRowId)
+            ->fetchFirstColumn();
+
+        $elements = [];
+
+        foreach ($targetIds as $targetId) {
+            if ($targetId === null) {
+                continue;
+            }
+
+            $element = $this->entityManager->find($targetClass, $targetId);
+
+            if ($element === null) {
+                continue;
+            }
+
+            $elements[] = $element;
+        }
+
+        return $elements;
+    }
+
     private function hydrateSingleRelation(
         string $fieldName,
         string $targetClass,
